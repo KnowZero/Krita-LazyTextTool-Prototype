@@ -1626,7 +1626,7 @@ class LazyTextObject(QtWidgets.QGraphicsRectItem):
                 self.setHtml(content[0])
 
             LazyTextUtils.applyBlockSettings(content[2], self.textItem.document())
-            
+            if 'wrapmode' in content[1]: self.textWrapMode = content[1]['wrapmode']
 
             '''
             font = self.textItem.font()
