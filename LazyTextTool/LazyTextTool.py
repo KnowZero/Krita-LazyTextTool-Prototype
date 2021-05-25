@@ -272,6 +272,7 @@ class LazyTextTool(Extension):
             
             if self.scene.modifyMode and currentLayer.type() == 'vectorlayer' and currentLayer.visible() and len(currentLayer.shapes()) == 1:
                 currentLayer.setVisible(False)
+                QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.IBeamCursor)
                 self.textTool.currentDocument.refreshProjection()
             print ("EDIT ITEM2", currentLayer.type())
             
@@ -384,14 +385,14 @@ class LazyTextTool(Extension):
             doc = textObject.textItem.document()
             tcursor=textObject.textItem.textCursor()
             textContent = textObject.textItem.toPlainText()
-            
+        
             for bi in range(len(blockSettings)-1,-1,-1):
                 for li in range(len(blockSettings[bi]['lines'])-1,0,-1):
                     tcursor.setPosition(blockSettings[bi]['start']+blockSettings[bi]['lines'][li]['start'])
                     tcursor.insertText('<br data-wordwrap="true" />')
                 
                 
-
+            
             textContent=textContent.replace("\n", " ")
             htmlContent = textObject.textItem.toHtml()
             htmlContent = htmlContent.replace('<br />&lt;br data-wordwrap=&quot;true&quot; /&gt;','<br data-wordwrap="true" />')
