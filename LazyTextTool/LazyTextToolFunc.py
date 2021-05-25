@@ -32,11 +32,11 @@ class LazyTextUtils():
     STYLE2ATTR_MAP = {
             "color~1":{"alias":"fill","type":["color","HtmlColor"]},
             "color~2":{"alias":"fill-opacity","type":["color","Opacity"]},
-            "font-size":{"truncate":"pt"},
+            "font-size":{"replace":["pt",""]},
             "font-weight":{"round":-2},
             "font-style":{},
             "text-decoration":{},
-            "font-family":{},
+            "font-family":{"replace":["','",","]},
             "vertical-align":{"alias":"baseline-shift"},
             "letter-spacing":{},
             "text-align":{"alias":"text-anchor","values":{ "":"start", "left":"start", "center":"middle", "right":"end" }}
@@ -525,13 +525,13 @@ class LazyTextUtils():
                             if dictKey in styleDict:
                                 attrValue = (attrData['values'][styleDict[dictKey]] if 'values' in attrData.keys() else styleDict[dictKey])
                                 if 'append' in attrData.keys(): attrValue += attrData['append']
-                                if 'truncate' in attrData.keys(): attrValue = attrValue.replace(attrData['truncate'],'')
+                                if 'replace' in attrData.keys(): attrValue = attrValue.replace(attrData['replace'][0],attrData['replace'][1])
                                 if 'round' in attrData.keys(): attrValue = str(round(float(attrValue),attrData['round']) if attrData['round'] > 0 else int(round(float(attrValue),attrData['round'])))
                                 if 'type' in attrData.keys():
                                     if attrData['type'][0] == 'color':
                                         attrValue = LazyTextUtils.calcColor(attrValue,attrData['type'][1])
                                 attrName = attrData['alias'] if 'alias' in attrData.keys() else attrKey
-                                attrValue = re.sub(r"^'(.*)'$",r"\1", attrValue)
+                                attrValue = ','.join(list(map(lambda x: re.sub(r"^\s*'(.*)'\s*$",r"\1", x), attrValue.split(','))))
                                 el.set(attrName, attrValue)
                         del el.attrib['style']
                         
@@ -586,7 +586,7 @@ class LazyTextUtils():
 
     @staticmethod
     def svgToDocument(svgContent):
-        htmlData = LazyTextUtils.svgToHtml(svgContent)
+        htmlData = LazyTextUtils.svgToHtml2(svgContent)
         doc = LazyTextUtils.htmlToDocument( htmlData['content'] )
 
         return [doc, htmlData['docSettings'], htmlData['blockSettings'] ]
@@ -600,6 +600,137 @@ class LazyTextUtils():
 
                 
         return doc
+
+    @staticmethod
+    def svgToHtml2(svgContent):        
+        etree = ET.iterparse(StringIO(svgContent), events=("start", "end"))
+        etree = ET.iterparse(StringIO(svgContent), events=("start", "end"))
+
+        depthList = []
+        htmlContentList = ["<style>p { margin: 0px; padding: 0px }</style>"]
+        blockSettings = []
+        docSettings = {}
+        onBlock = -1
+        onLine = 0
+        
+        tagConvert = {
+                'root':{ 'tag':"body" },
+                'block':{ 'tag':"p" },
+                'line':{ 'tag':"span" },
+                'mark':{ 'tag':"span" }
+        }
+
+        elementList = []
+        
+        for event,el in etree:
+            elementList.append({ 'event': event, 'el': el })
+        
+        for i in range(len(elementList)):
+            el=elementList[i]['el']
+            if elementList[i]['event'] == 'start':
+                styleDict = LazyTextUtils.styleToDict(el.get('style'))
+                
+                for attrKey, attrData in LazyTextUtils.ATTR2STYLE_MAP.items():
+                    if attrKey in el.attrib:
+                        attrValue = (attrData['values'][el.get(attrKey)] if 'values' in attrData.keys() else el.get(attrKey))
+                        if 'append' in attrData.keys(): attrValue += attrData['append']
+                        if 'replace' in attrData.keys(): attrValue = attrValue.replace(attrData['replace'][0],attrData['replace'][1])
+                        if 'round' in attrData.keys(): attrValue = str(round(float(attrValue),attrData['round']) if attrData['round'] > 0 else int(round(float(attrValue),attrData['round'])))
+                        if 'type' in attrData.keys():
+                            if attrData['type'][0] == 'color':
+                                attrValue = LazyTextUtils.calcColor(attrValue,attrData['type'][1], (el.get(attrData['type'][2]) if attrData['type'][2] in el.attrib else None))
+                        attrName = attrData['alias'] if 'alias' in attrData.keys() else attrKey
+                        styleDict[attrName]=attrValue
+                
+               
+                attr = { 
+                    'style': ' '.join([
+                        '%s: %s;' % (
+                            key, 
+                            "'"+ "','".join(list(map(lambda x: x.replace("'", r"\'"), re.split(r'\s*,\s*', value))))+"'" if ' ' in value else value 
+                            ) for (key, value) in styleDict.items()
+                    ]) 
+                }
+                
+                if el.tag == 'text':
+                    elementType = "root"
+                    docSettings['version']=0
+                    
+                    if 'id' in el.attrib:
+                        print ("ID FOUND!")
+                        docData = re.search(r'^t(\d)_(\d+)_(\d)([\d\.]+)_(.+)$', el.get('id'))
+                        if docData is not None:
+                            docSettings['version']=int(docData.group(1))
+                            docSettings['resolution']=int(docData.group(2))
+                            docSettings['wrapmode']=int(docData.group(3))
+                            docSettings['boundarywidth']=float(docData.group(4))
+                            docSettings['crc32']=docData.group(5)
+
+                elif el.tag == 'tspan':
+                    elementType = "mark"
+                    if 'text-anchor' in el.attrib:
+                        elementType = "block"
+
+                    elif 'dy' in el.attrib or 'x' in el.attrib:
+                        if len(depthList) == 1:
+                            elementType = "block"
+                        else:
+                            elementType = "line"
+                            
+                            
+                    elif len(depthList) == 1 and ('dy' in elementList[i+1]['el'] 
+                                                  or 'x' in elementList[i+1]['el'] 
+                                                  ):
+                        elementType = "block"
+
+
+                if elementType in tagConvert:
+                    if elementType == "block":
+                        blockSettings.append({ 'lines':[{}], 'fragments':[], 'attrib':{} })
+                        onBlock+=1
+                        onLine=0
+                        blockSettings[onBlock]['attrib'] = attr
+                       
+                        if 'letter-spacing' in el.attrib:
+                            blockSettings[onBlock]['letterspacing']=el.get('letter-spacing')
+                        
+                        if 'text-anchor' in el.attrib:
+                            blockSettings[onBlock]['align']=el.get('text-anchor')
+                        
+                    elif elementType == "line" and onLine >= 1:
+                        htmlContentList.append("<br />")
+                        blockSettings[onBlock]['lines'].append({})
+                        onLine+=1
+                        
+  
+                    if 'dy' in el.attrib:
+                        bi = onBlock if onLine >= 1 else onBlock-1
+                        blockSettings[bi]['lineheight']=el.get('dy')
+                        blockSettings[bi]['lines'][onLine]['lineheight']=el.get('dy')
+
+                    
+                    attr['data-type']=elementType
+                    depthList.append({ 'el': el, 'type':elementType, 'tag':tagConvert[elementType]['tag'] })
+                    htmlContentList.append( [tagConvert[elementType]['tag'], attr] )
+                    
+                
+                    if el.text is not None:
+                        if onBlock == -1:
+                            blockSettings.append({ 'lines':[{}], 'fragments':[], 'attrib':{} })
+                            onBlock+=1
+                            onLine=0
+                        blockSettings[onBlock]['fragments'].append({ 'text': el.text, 'attrib': el.attrib  })
+                        htmlContentList.append( el.text )                      
+            elif elementList[i]['event'] == 'end':
+                depthItem = depthList.pop()
+                print ("CLOSEME", el.tail, depthItem, tagConvert[depthItem['type']]['tag'] )
+                htmlContentList.append( "</"+tagConvert[depthItem['type']]['tag']+">" )
+                if el.tail is not None:
+                    blockSettings[onBlock]['fragments'].append({ 'text': el.tail, 'attrib': depthList[len(depthList)-1]['el'].attrib  })
+                    htmlContentList.append( el.tail )
+                
+        print ("OUT", "\n".join([ LazyTextUtils.buildElement2(item) for item in htmlContentList ]), docSettings, blockSettings )
+        return { 'content': "".join([ LazyTextUtils.buildElement2(item) for item in htmlContentList ]), 'docSettings': docSettings , 'blockSettings': blockSettings}
 
 
     @staticmethod
@@ -619,7 +750,6 @@ class LazyTextUtils():
                 'line':{ 'tag':"span" },
                 'mark':{ 'tag':"span" }
         }
-
         
         for event,el in etree:
             if event == 'start':
@@ -629,6 +759,7 @@ class LazyTextUtils():
                     if attrKey in el.attrib:
                         attrValue = (attrData['values'][el.get(attrKey)] if 'values' in attrData.keys() else el.get(attrKey))
                         if 'append' in attrData.keys(): attrValue += attrData['append']
+                        if 'replace' in attrData.keys(): attrValue = attrValue.replace(attrData['replace'][0],attrData['replace'][1])
                         if 'round' in attrData.keys(): attrValue = str(round(float(attrValue),attrData['round']) if attrData['round'] > 0 else int(round(float(attrValue),attrData['round'])))
                         if 'type' in attrData.keys():
                             if attrData['type'][0] == 'color':
@@ -1518,12 +1649,18 @@ class LazyTextHandle(QtWidgets.QGraphicsRectItem):
 
         super(LazyTextHandle, self).mouseMoveEvent(event)
 
+    def hoverLeaveEvent(self, event):
+        super(LazyTextHandle, self).hoverLeaveEvent(event)
+        QtWidgets.QApplication.restoreOverrideCursor()
+
     def hoverEnterEvent(self, event):
         super(LazyTextHandle, self).hoverEnterEvent(event)
         scene = self.scene()
         
         if scene.selectedObject is self.parentItem() and (scene.currentMode == LazyTextScene.ADJUST_MODE or scene.currentMode == LazyTextScene.EDIT_MODE):
             QtWidgets.QApplication.setOverrideCursor(self.CURSORS_LIST[self.handleType]);
+        else:
+            QtWidgets.QApplication.restoreOverrideCursor()
         
     def paint(self,painter,option,widget):
         scene = self.scene()
@@ -1764,11 +1901,14 @@ class LazyTextObject(QtWidgets.QGraphicsRectItem):
 
     def hoverEnterEvent(self, event):
         super(LazyTextObject, self).hoverEnterEvent(event)
-        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.IBeamCursor);
+        scene = self.scene()
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.IBeamCursor)
 
     def hoverLeaveEvent(self, event):
         super(LazyTextObject, self).hoverLeaveEvent(event)
         scene = self.scene()
+        QtWidgets.QApplication.restoreOverrideCursor()
+        QtWidgets.QApplication.restoreOverrideCursor()
         QtWidgets.QApplication.setOverrideCursor(scene.CURSORS_LIST.get(scene.currentMode))
 
     def paint(self,painter,option,widget):
@@ -1857,6 +1997,8 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
             self.selectedObject.setFlag(QtWidgets.QGraphicsItem.ItemIsMovable,0)
             self.selectedObject.adjustHandles()
         print ("MODE", mode, self.CURSORS_LIST.get(mode))
+        QtWidgets.QApplication.restoreOverrideCursor()
+        QtWidgets.QApplication.restoreOverrideCursor()
         QtWidgets.QApplication.setOverrideCursor(self.CURSORS_LIST.get(mode))
 
     def wheelEvent(self, event):
@@ -1875,7 +2017,7 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
             self.modifyMode = True
             print ("EDITING ITEM MODIFY", self.selectedObject)
             self.parent().editItem(self.selectedObject)
-            QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.IBeamCursor);
+            #QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.IBeamCursor);
          
         super(LazyTextScene, self).mouseDoubleClickEvent(event)
         #>>super(LazyTextScene, self).mousePressEvent(event)
