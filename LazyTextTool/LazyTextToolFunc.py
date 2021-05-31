@@ -917,6 +917,8 @@ class LazyTextHelper(QtWidgets.QWidget):
         self.target = None
         self.currentColor = None
         self.currentStrokeColor = None
+        self.firstRun = False
+        self.defaultSettings = { 'font': QtGui.QFont() }
         
         self.setAttribute(QtCore.Qt.WA_ShowWithoutActivating, True)
         #self.setWindowFlags(QtCore.Qt.Tool | QtCore.Qt.WindowDoesNotAcceptFocus)
@@ -998,12 +1000,25 @@ class LazyTextHelper(QtWidgets.QWidget):
         
         self.boldButton.setMenu(self.boldMenu)
     
-    def showFor(self, target):
+    def setDialogDefaults(self):
+        if self.firstRun == False:
+            return;
+        self.setCurrentFont(self.defaultSettings['font'])
+        self.setCurrentFontSize(self.defaultSettings['font'].pointSizeF())
+     
+        
+        
+    
+    def showFor(self, target, useDefaults = True):
         if self.target is not None:
             self.target.cursorPositionChanged.disconnect(self.updateFormatButtons)
         
         self.target = target
         self.target.cursorPositionChanged.connect(self.updateFormatButtons)
+        if useDefaults == True: 
+            self.setDialogDefaults()
+        self.updateFormatButtons(self.target.textCursor())
+        self.firstRun = True
         self.show()
         self.target.setFocus()
 
@@ -1141,7 +1156,7 @@ class LazyTextHelper(QtWidgets.QWidget):
 
 
 
-    def setColor(self, color,alpha):
+    def setColor(self,color,alpha):
         if self.blockMode: return
         tcursor = self.getCursor()
         fmt = QtGui.QTextCharFormat()
@@ -1156,6 +1171,11 @@ class LazyTextHelper(QtWidgets.QWidget):
         fmt = QtGui.QTextCharFormat()
         fmt.setFontPointSize(fontSize)
         tcursor.mergeCharFormat(fmt)
+        self.defaultSettings['font'].setPointSizeF(fontSize)
+        if self.target.toPlainText() == '':
+            font = self.target.font()
+            font.setPointSizeF(fontSize)
+            self.target.setFont(font)
         
         self.setLineSpacing()
         
@@ -1368,6 +1388,11 @@ class LazyTextHelper(QtWidgets.QWidget):
         fmt = QtGui.QTextCharFormat()
         fmt.setFontFamily(font.family())
         tcursor.mergeCharFormat(fmt)
+        self.defaultSettings['font'].setFamily(font.family())
+        if self.target.toPlainText() == '':
+            currentFont = self.target.font()
+            currentFont.setFamily(font.family())
+            self.target.setFont(currentFont)
 
     def fontWeightAction(self,toggle):
         self.setFontWeight(self.sender().data())
