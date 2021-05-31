@@ -160,12 +160,11 @@ class LazyTextTool(Extension):
         
         def findSingleTextInGroup(self, mousePoint, layerNodeList):
             shape = None
-            
             for nodeLayer in layerNodeList:
                 if nodeLayer.type() == 'vectorlayer' and nodeLayer.visible():
                     shape = self.findSingleTextInLayer(nodeLayer, mousePoint)
                 elif nodeLayer.type() == 'grouplayer' and nodeLayer.visible() and len(nodeLayer.childNodes()) > 0:
-                    shape = self.findSingleTextInGroup(mousePoint, nodeLayer)
+                    shape = self.findSingleTextInGroup(mousePoint, nodeLayer.childNodes())
                     
                 if shape is not None:
                     return [nodeLayer, shape]
@@ -192,7 +191,7 @@ class LazyTextTool(Extension):
                 if nodeLayer.type() == 'vectorlayer' and nodeLayer.visible():
                     shape = self.findTextInLayer(nodeLayer, mousePoint)
                 elif nodeLayer.type() == 'grouplayer' and nodeLayer.visible() and len(nodeLayer.childNodes()) > 0:
-                    shape = self.findTextInGroup(mousePoint, nodeLayer)
+                    shape = self.findTextInGroup(mousePoint, nodeLayer.childNodes())
                     
                 if shape is not None:
                     return [nodeLayer, shape]
@@ -218,7 +217,7 @@ class LazyTextTool(Extension):
                 if nodeLayer.type() == 'vectorlayer' and nodeLayer.visible():
                     textShapeList += self.findAllTextInLayer(nodeLayer)
                 elif nodeLayer.type() == 'grouplayer' and nodeLayer.visible() and len(nodeLayer.childNodes()) > 0:
-                    textShapeList += self.findAllTextInGroup(nodeLayer)
+                    textShapeList += self.findAllTextInGroup(nodeLayer.childNodes())
   
             return textShapeList       
         
