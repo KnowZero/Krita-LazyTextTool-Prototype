@@ -262,7 +262,7 @@ class LazyTextTool(Extension):
             self.textTool.setCurrentLayer()
             currentLayer = self.textTool.currentLayer
             
-            self.helperDialog.showFor(textObject.textItem)
+            self.helperDialog.showFor(textObject.textItem, self.scene.modifyMode == False)
             
             #self.helperDialog.move( textObject.pos().toPoint() )
             #self.helperDialog.move( self.view.mapToGlobal(QtCore.QPoint(0, 0)) )
