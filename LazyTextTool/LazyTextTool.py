@@ -456,6 +456,8 @@ class LazyTextTool(Extension):
             self.currentTextCanvas = None
             self.unbindScrollArea()
             self.unbindLayerList2()
+            QtWidgets.QApplication.restoreOverrideCursor()
+            QtWidgets.QApplication.restoreOverrideCursor()
 
     def openTextCanvas(self):
         if self.currentTextCanvas is None:
