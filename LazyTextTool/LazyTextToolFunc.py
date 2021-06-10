@@ -1625,7 +1625,7 @@ class LazyTextEdit(QtWidgets.QGraphicsTextItem):
             
         
         self.cursorPosition = cpos
-        super(LazyTextEdit, self).mouseMoveEvent(event)
+        super(LazyTextEdit, self).mouseReleaseEvent(event)
         
     def boundingRect(self):
         return super(LazyTextEdit, self).boundingRect()
@@ -1666,6 +1666,7 @@ class LazyTextHandle(QtWidgets.QGraphicsRectItem):
         self.posY = event.scenePos().y()
         parentItem = self.parentItem()
         parentItem.textRectRatio = [ parentItem.textItem.boundingRect().width()/parentItem.rect().width(), parentItem.textItem.boundingRect().height()/parentItem.rect().height() ]
+        scene.selectedObject = self;
         scene.setCurrentMode(LazyTextScene.ADJUST_MODE)
         super(LazyTextHandle, self).mousePressEvent(event)
         
@@ -2049,7 +2050,7 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
 
     def mousePressEvent(self, event):
         super(LazyTextScene, self).mousePressEvent(event)
-        if self.currentMode == self.WORK_MODE: return
+        if self.currentMode == self.WORK_MODE or self.currentMode == self.ADJUST_MODE: return
         
         onItem = self.itemAt(event.scenePos(), QtGui.QTransform())
         if isinstance(onItem,LazyTextBackground): onItem = None
