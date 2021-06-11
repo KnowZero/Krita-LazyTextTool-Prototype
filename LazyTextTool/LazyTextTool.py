@@ -167,7 +167,7 @@ class LazyTextTool(Extension):
                     shape = self.findSingleTextInGroup(mousePoint, nodeLayer.childNodes())
                     
                 if shape is not None:
-                    return [nodeLayer, shape]
+                    return shape
 
             return None
 
@@ -176,8 +176,8 @@ class LazyTextTool(Extension):
             if nodeLayer.type() == 'vectorlayer' and nodeLayer.visible() and len(nodeLayer.shapes()) == 1:
                 for shape in nodeLayer.shapes():
                     if shape.type() == 'KoSvgTextShapeID' and shape.boundingBox().contains(mousePoint):
-                        return shape
-            return None            
+                        return [nodeLayer, shape]
+            return None    
         
         def findTextAt(self, mousePoint):
             return self.findTextInGroup(mousePoint, self.textTool.currentDocument.activeNode().parentNode().childNodes())
