@@ -449,13 +449,13 @@ class LazyTextTool(Extension):
  
 
 
-    def closeTextCanvas(self):
+    def closeTextCanvas(self, soft = False):
         if self.currentTextCanvas is not None:
             self.currentTextCanvas.cleanup()
             self.currentTextCanvas.close()
             self.currentTextCanvas = None
             self.unbindScrollArea()
-            self.unbindLayerList2()
+            if soft == False: self.unbindLayerList2()
             QtWidgets.QApplication.restoreOverrideCursor()
             QtWidgets.QApplication.restoreOverrideCursor()
 
@@ -523,18 +523,20 @@ class LazyTextTool(Extension):
         self.scrollArea.verticalScrollBar().valueChanged.connect(self.canvasAdjust)
         
     def bindToolButton(self):
-        qwin = Krita.instance().activeWindow().qwindow()
-        toolBox = qwin.findChild(QtWidgets.QDockWidget, "ToolBox")
-        textToolButton = qwin.findChild(QtWidgets.QToolButton, "SvgTextTool")
         if self.toolboxButtonFilterItem is None:
+            qwin = Krita.instance().activeWindow().qwindow()
+            toolBox = qwin.findChild(QtWidgets.QDockWidget, "ToolBox")
+            textToolButton = qwin.findChild(QtWidgets.QToolButton, "SvgTextTool")
             self.toolboxButtonFilterItem = self.toolboxButtonFilter(self)
             textToolButton.installEventFilter(self.toolboxButtonFilterItem)
 
     def unbindToolButton(self):
-        qwin = Krita.instance().activeWindow().qwindow()
-        toolBox = qwin.findChild(QtWidgets.QDockWidget, "ToolBox")
-        textToolButton = qwin.findChild(QtWidgets.QToolButton, "SvgTextTool")
-        textToolButton.removeEventFilter(self.toolboxButtonFilter)
+        if self.toolboxButtonFilterItem is not None:
+            qwin = Krita.instance().activeWindow().qwindow()
+            toolBox = qwin.findChild(QtWidgets.QDockWidget, "ToolBox")
+            textToolButton = qwin.findChild(QtWidgets.QToolButton, "SvgTextTool")
+            textToolButton.removeEventFilter(self.toolboxButtonFilterItem)
+            self.toolboxButtonFilterItem = None
 
     def bindLayerList2(self):
         qwin = Krita.instance().activeWindow().qwindow()
@@ -623,8 +625,30 @@ class LazyTextTool(Extension):
     def setup(self):
         pass
 
+    def closeViewEvent(self):
+        print ("CLOSE VIEW", Krita.instance().activeWindow().activeView().visible())
+        self.closeTextCanvas(True)
+        if Krita.instance().activeWindow().activeView().visible() == False:
+            self.unbindToolButton()
+        else:
+            self.onTab = -1
+            self.layerChanged(None,None)
+
+
+    def openViewEvent(self):
+        print ("OPEN VIEW")
+        self.bindToolButton()
+        self.onTab = -1
+
+      
+
     def toggleTextTool(self, toggle=None):
+        notify = Krita.instance().notifier()
+        
         if self.active == True:
+            notify.viewClosed.disconnect(self.closeViewEvent)
+            notify.viewCreated.disconnect(self.openViewEvent)
+            self.unbindToolButton()
             self.closeTextCanvas()
             self.active=False
         else:
@@ -633,6 +657,10 @@ class LazyTextTool(Extension):
             qwin = Krita.instance().activeWindow().qwindow()
             toolBox = qwin.findChild(QtWidgets.QDockWidget, "ToolBox")
             textToolButton = qwin.findChild(QtWidgets.QToolButton, "SvgTextTool")
+            notify.setActive(True)
+            
+            notify.viewClosed.connect(self.closeViewEvent)
+            notify.viewCreated.connect(self.openViewEvent)
 
             if textToolButton.isChecked():
                 self.openTextCanvas()
