@@ -2057,7 +2057,7 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
         
         
         if self.currentMode == self.EDIT_MODE and event.button() == QtCore.Qt.RightButton:
-            if onItem is self.selectedObject or onItem.parentItem() is self.selectedObject: return
+            if onItem is not None and (onItem is self.selectedObject or onItem.parentItem() is self.selectedObject): return
             print ("CANCEL ITEM", onItem, self.selectedObject)
             self.parent().cancelItem()
             self.setCurrentMode(self.INIT_MODE)
