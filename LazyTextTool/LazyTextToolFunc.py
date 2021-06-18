@@ -117,6 +117,9 @@ class LazyTextUtils():
         currentSettings = LazyTextUtils.loadBlockSettings(doc)
         print ("APPLY LINE SETTINGS");
         
+        print ("CURRENT SETTINGS", currentSettings)
+        print ("NEW SETTINGS", newSettings)
+        
         blockCount = len(newSettings)-1
         for bi in range(len(newSettings)):
             block = doc.findBlockByNumber(bi)
@@ -125,26 +128,33 @@ class LazyTextUtils():
             blockFormat = None
             charFormat = None
             
+
+            
             if 'lineheight' in newSettings[bi]:
                 currentLineHeight = currentSettings[bi]['ascent']+currentSettings[bi]['descent']
                 
-                lineCount = block.lineCount()
+                lineCount = len(currentSettings[bi]['lines'])
+                lineScale = 0.00
+                lineHeight = currentLineHeight
                 
 
                 if lineCount >= 2:
-                    lineScale = ( float(newSettings[bi]['lines'][0]['lineheight']) - currentSettings[bi]['lines'][1]['ascent'] + currentSettings[bi]['lines'][0]['ascent'] ) / (currentSettings[bi]['lines'][0]['ascent'] + currentSettings[bi]['lines'][0]['descent'])
-                if bi < blockCount:
-                    lineScale = ( float(newSettings[bi]['lines'][-1]['lineheight']) - currentSettings[bi+1]['lines'][0]['ascent'] + currentSettings[bi]['lines'][-1]['ascent'] ) / (currentSettings[bi]['lines'][-1]['ascent'] + currentSettings[bi]['lines'][-1]['descent'])
+                    lineScale = float( float(newSettings[bi]['lines'][0]['lineheight']) - currentSettings[bi]['lines'][1]['ascent'] + currentSettings[bi]['lines'][0]['ascent'] ) / float(currentSettings[bi]['lines'][0]['ascent'] + currentSettings[bi]['lines'][0]['descent'])
+                    print ("LS", lineScale, ( float(newSettings[bi]['lines'][0]['lineheight']), "-", currentSettings[bi]['lines'][1]['ascent'], "+", currentSettings[bi]['lines'][0]['ascent'] ), "/", (currentSettings[bi]['lines'][0]['ascent'], "+", currentSettings[bi]['lines'][0]['descent'])  )
+                elif bi < blockCount:
+                    print ("NS", float(newSettings[bi]['lines'][-1]['lineheight']))
+                    print ("NS2", currentSettings[bi+1]['lines'][0]['ascent'])
+                    lineScale = float( float(newSettings[bi]['lines'][-1]['lineheight']) - currentSettings[bi+1]['lines'][0]['ascent'] + currentSettings[bi]['lines'][-1]['ascent'] ) / float(currentSettings[bi]['lines'][-1]['ascent'] + currentSettings[bi]['lines'][-1]['descent'])
                 else:
-                    lineScale = 1
+                    lineScale = 1.0
                 
                 #((currentBlockAbsoluteLineOffset - currLineAscent + prevLineAscent) / (prevLineAscent + prevLineDescent)) * 100.0
                 
                 #lineScale = ( float(newSettings[bi]['lineheight']) - currentSettings[bi+1]['lines'][0]['ascent'] + currentSettings[bi+1]['lines'][0]['descent'] ) / (currentSettings[bi]['lines'][0]['ascent'] + currentSettings[bi]['lines'][0]['descent'])
 
-            
+                print("BLOCKLINE", bi, newSettings[bi]['lineheight'])
                 #lineScale = float(newSettings[bi]['lineheight'])/currentLineHeight
-                print ("SCALE", lineScale,"HEIGHT", currentLineHeight, "LC", lineCount, "BI", bi)
+                print ("SCALE", lineScale,"HEIGHT", currentLineHeight, "LC", lineCount, "BI", bi, "LH", lineHeight)
                 blockUData = block.userData()
 
                 if not blockUData:
@@ -152,10 +162,11 @@ class LazyTextUtils():
                     block.setUserData(blockUData)
             
                 blockUData.setLineScale(lineScale)
+                blockUData.setLineHeight( lineHeight )
             
                 blockFormat = block.blockFormat()
-                #>>>>blockFormat.setLineHeight( float(newSettings[bi]['lineheight']), QtGui.QTextBlockFormat.FixedHeight )
-                blockFormat.setLineHeight( lineScale*100, QtGui.QTextBlockFormat.ProportionalHeight )
+                #blockFormat.setLineHeight( float(newSettings[bi]['lineheight']), QtGui.QTextBlockFormat.FixedHeight )
+                #???blockFormat.setLineHeight( lineScale*100, QtGui.QTextBlockFormat.ProportionalHeight )
             
             '''
             if 'letterspacing' in newSettings[bi]:
@@ -272,7 +283,7 @@ class LazyTextUtils():
 
             #>>print ("NBLOCK!", bi, blockFormat.alignment(), "=", textBlock.text() )
             blockSettings.append({
-                'linescale': (1 if blockFormat.lineHeightType() == QtGui.QTextBlockFormat.SingleHeight else blockUData.lineScale()),
+                'linescale': blockUData.lineScale(),
                 'start':textBlock.position(),
                 'ascent':0,
                 'descent':0,
@@ -587,6 +598,8 @@ class LazyTextUtils():
     @staticmethod
     def svgToDocument(svgContent):
         htmlData = LazyTextUtils.svgToHtml2(svgContent)
+        htmlData['content'] = re.sub(r'(<p[^>]*?>)[ ]*?</p>',r'\1&nbsp;</p>', htmlData['content'])
+        print ("HTML2", htmlData['content'])
         doc = LazyTextUtils.htmlToDocument( htmlData['content'] )
 
         return [doc, htmlData['docSettings'], htmlData['blockSettings'] ]
@@ -623,7 +636,7 @@ class LazyTextUtils():
         elementList = []
         
         for event,el in etree:
-            elementList.append({ 'event': event, 'el': el })
+            elementList.append({ 'event': event, 'el': el, 'type':'unknown' })
         
         for i in range(len(elementList)):
             el=elementList[i]['el']
@@ -678,15 +691,15 @@ class LazyTextUtils():
                             elementType = "line"
                             
                             
-                    elif len(depthList) == 1 and ('dy' in elementList[i+1]['el'] 
-                                                  or 'x' in elementList[i+1]['el'] 
+                    elif len(depthList) == 1 and ('dy' in elementList[i+1]['el'].attrib
+                                                  or 'x' in elementList[i+1]['el'].attrib
                                                   ):
                         elementType = "block"
 
-
+                print ("ELM", elementList[i]['el'].attrib )
                 if elementType in tagConvert:
                     if elementType == "block":
-                        blockSettings.append({ 'lines':[{}], 'fragments':[], 'attrib':{} })
+                        blockSettings.append({ 'lines':[{}], 'fragments':[], 'attrib':{}, 'lineheight':0 })
                         onBlock+=1
                         onLine=0
                         blockSettings[onBlock]['attrib'] = attr
@@ -697,7 +710,7 @@ class LazyTextUtils():
                         if 'text-anchor' in el.attrib:
                             blockSettings[onBlock]['align']=el.get('text-anchor')
                         
-                    elif elementType == "line" and onLine >= 1:
+                    elif elementType == "line" and elementList[i-1]['type'] != 'block':
                         htmlContentList.append("<br />")
                         blockSettings[onBlock]['lines'].append({})
                         onLine+=1
@@ -705,10 +718,12 @@ class LazyTextUtils():
   
                     if 'dy' in el.attrib:
                         bi = onBlock if onLine >= 1 else onBlock-1
-                        blockSettings[bi]['lineheight']=el.get('dy')
-                        blockSettings[bi]['lines'][onLine]['lineheight']=el.get('dy')
+                        print ("LINEINFO", onBlock, onLine, "BI", bi, el.get('dy') )
+                        if bi >= 0:
+                            if float(blockSettings[bi]['lineheight']) < float(el.get('dy')): blockSettings[bi]['lineheight']=el.get('dy')
+                            blockSettings[bi]['lines'][onLine-1]['lineheight']=el.get('dy')
 
-                    
+                    elementList[i]['type']=elementType
                     attr['data-type']=elementType
                     depthList.append({ 'el': el, 'type':elementType, 'tag':tagConvert[elementType]['tag'] })
                     htmlContentList.append( [tagConvert[elementType]['tag'], attr] )
@@ -716,7 +731,7 @@ class LazyTextUtils():
                 
                     if el.text is not None:
                         if onBlock == -1:
-                            blockSettings.append({ 'lines':[{}], 'fragments':[], 'attrib':{} })
+                            blockSettings.append({ 'lines':[{}], 'fragments':[], 'attrib':{}, 'lineheight':0 })
                             onBlock+=1
                             onLine=0
                         blockSettings[onBlock]['fragments'].append({ 'text': el.text, 'attrib': el.attrib  })
@@ -1085,7 +1100,8 @@ class LazyTextHelper(QtWidgets.QWidget):
             blockUData = LazyTextBlockUserData()
             block.setUserData(blockUData)
 
-        self.lineSpacingDSpinBox.setValue( blockUData.lineScale()*100 if blockFormat.lineHeightType() == QtGui.QTextBlockFormat.ProportionalHeight else 100 )
+        self.lineSpacingDSpinBox.setValue( blockUData.lineScale()*100 )
+        #???self.lineSpacingDSpinBox.setValue( blockUData.lineScale()*100 if blockFormat.lineHeightType() == QtGui.QTextBlockFormat.ProportionalHeight else 100 )
         #self.lineSpacingDSpinBox.setValue( blockUData.lineScale()*100 if blockFormat.lineHeightType() == QtGui.QTextBlockFormat.FixedHeight else 100 )
         self.letterSpacingDSpinBox.setValue( charFormat.fontLetterSpacing() if charFormat.fontLetterSpacingType() == QtGui.QFont.AbsoluteSpacing else 0 )
         
@@ -1235,8 +1251,13 @@ class LazyTextHelper(QtWidgets.QWidget):
             print ("BLOCK HEIGHT", blockMaxHeight)
             blockHeightOffset = fmt.lineHeight()
             print ("LINEH", blockHeightOffset )
-            #fmt.setLineHeight( blockMaxHeight * blockUData.lineScale(), QtGui.QTextBlockFormat.FixedHeight )
-            fmt.setLineHeight( blockUData.lineScale()*100 , QtGui.QTextBlockFormat.ProportionalHeight )
+            
+            #fmt.setLineHeight( blockMaxHeight * (blockUData.lineScale()+0.4), QtGui.QTextBlockFormat.FixedHeight )
+            #block.layout().lineAt(0).setPosition(QtCore.QPointF(50,50))
+            print ("FIRST LINE POS", block.layout().lineAt(0).position() )
+            #QTextLine::setPosition(const QPointF &pos)
+            #???fmt.setLineHeight( blockUData.lineScale()*100 , QtGui.QTextBlockFormat.ProportionalHeight )
+           
             #fmt.setLineHeight( lineSpacing, QtGui.QTextBlockFormat.ProportionalHeight )
             bcursor = QtGui.QTextCursor(block)
             bcursor.mergeBlockFormat(fmt)   
@@ -1545,6 +1566,7 @@ class LazyTextEdit(QtWidgets.QGraphicsTextItem):
         self.setPlainText(text)
         self.isPressed = 0
         self.cursorPosition = 0
+        self.currentHeight = 0
         
         self.defaultFont = QtGui.QFont()
         self.defaultFont.setPointSize(10)
@@ -1589,7 +1611,7 @@ class LazyTextEdit(QtWidgets.QGraphicsTextItem):
 
         if self.cursorPosition != cpos:
             self.cursorPositionChanged.emit(cursor)
-            self.parentItem().resizeFromTextItem()
+            #???self.parentItem().resizeFromTextItem()
         
         self.cursorPosition = cpos
         
@@ -1636,6 +1658,112 @@ class LazyTextEdit(QtWidgets.QGraphicsTextItem):
 #        painter.drawRect(self.boundingRect())
 
 #        super().paint(painter, option, widget)
+
+
+    def paint(self,painter,option,widget):
+        #self.document().firstBlock().layout().lineAt(0).setPosition( QtCore.QPointF(0, 0 ) )
+        #super(LazyTextEdit, self).paint(painter,option,widget)
+        cursorPos = self.textCursor().position()
+        cursorPoint1 = QtCore.QPointF(-1,-1)
+        cursorPoint2 = QtCore.QPointF(-1,-1)
+        cursorBlockPos = -1
+
+        iblock = self.document().begin()
+        #blockHeight = 0;
+        #linespace = self.textCursor().blockFormat().lineHeight()
+        
+        
+        lastHeight = 0
+        lastScale = 1
+        cursorPosH = 0
+        totalPosH = 0
+        
+        blockCount = 0
+        lineCount = []
+   
+        while iblock != self.document().end():
+            textPosH = 0
+            blockCount += 1
+            
+            
+
+            textLayout = iblock.layout()
+            if textLayout == None:
+                print ("BREAK!")
+                break
+            
+        
+            blockUData = iblock.userData()
+
+            if not blockUData:
+                blockUData = LazyTextBlockUserData()
+                iblock.setUserData(blockUData)
+
+            if blockCount > 1 and lastHeight > 0 and blockUData.lineHeight() == 0 and blockUData.lineScale() == 1:
+                print ("NEW BLOCK!")
+                blockUData.setLineHeight(lastHeight)
+                blockUData.setLineScale(lastScale)
+                
+            if iblock.contains(cursorPos):
+                cursorBlockPos = cursorPos - iblock.position()
+                
+            lineCount.append(textLayout.lineCount())
+            
+            for i in range(textLayout.lineCount()):
+                line = textLayout.lineAt(i)
+                
+                
+                #glyphs = line.glyphRuns()
+                
+                #line.draw( painter, QtCore.QPointF(0, blockHeight ) );
+                line.setPosition( QtCore.QPointF(0, textPosH ) )
+                
+                if cursorBlockPos > -1 and line.textStart() <= cursorBlockPos and cursorBlockPos <= line.textStart()+line.textLength():
+                    cursorPosH += textPosH
+                    cursorXPos = line.cursorToX( cursorBlockPos )
+                    cursorPoint1 = QtCore.QPointF( cursorXPos[0]+0.5 , cursorPosH+0.5 )
+                    cursorPoint2 = QtCore.QPointF( cursorXPos[0]+0.5 , cursorPosH + blockUData.lineHeight() - 0.5 )
+                    cursorBlockPos = -1
+                    
+                    
+                textPosH += blockUData.lineHeight() * blockUData.lineScale()
+                lastHeight = blockUData.lineHeight()
+                lastScale = blockUData.lineScale()
+                #print ("TEXTH", blockUData.lineHeight(),blockUData.lineScale(),  textPosH)
+
+
+            totalPosH += textPosH
+            cursorPosH += textPosH
+            iblock = iblock.next()
+            
+
+        option.exposedRect.setHeight( LazyTextUtils.ptsToPx( totalPosH+lastHeight, self.scene().canvasResolution ) )
+
+        if self.currentHeight != option.exposedRect.height():
+            print ("ADJUSTH!!!", blockCount, lineCount, option.exposedRect.height())
+            self.currentHeight = option.exposedRect.height()
+            self.parentItem().resizeFromTextItem()
+                
+
+                
+            
+            
+            
+        cursorBlock = self.document().findBlock( self.textCursor().position() )
+        cursorLayout = cursorBlock.layout()
+
+            
+        if self.hasFocus() and self.scene().currentMode == LazyTextScene.EDIT_MODE and cursorPoint1.x() > -1:
+            pen = QtGui.QPen(QtCore.Qt.black);
+            pen.setWidth(1);
+            painter.setPen(pen);
+
+                
+            painter.drawLine(cursorPoint1, cursorPoint2 );
+                
+        super(LazyTextEdit, self).paint(painter,option,widget)
+
+
 
 class LazyTextHandle(QtWidgets.QGraphicsRectItem):
     MOVE = 1
@@ -1738,7 +1866,8 @@ class LazyTextObject(QtWidgets.QGraphicsRectItem):
                 self.textItem.setTextWidth(maxDocWidth['width']*1.1)
                 adjustRect = True
 
-        textHeight = LazyTextUtils.ptsToPx( textRect.height(), self.scene().canvasResolution )
+        #???textHeight = LazyTextUtils.ptsToPx( textRect.height(), self.scene().canvasResolution )
+        textHeight = self.textItem.currentHeight
         if objectRect.height() < textHeight:
             objectRect.setHeight(textHeight)
             adjustRect = True
@@ -1755,7 +1884,8 @@ class LazyTextObject(QtWidgets.QGraphicsRectItem):
         if hasattr(self, 'moveHandle'):
             r = self.rect()
             self.moveHandle.setRect(r.topLeft().x()-10,r.topLeft().y()-10,10,10)
-            self.resizeHandle.setRect(r.bottomRight().x(),r.bottomRight().y(),10,10)
+            self.resizeHandle.setRect(r.topRight().x(),r.topRight().y()-10,10,10)
+            #>>self.resizeHandle.setRect(r.bottomRight().x(),r.bottomRight().y(),10,10)
             #>>self.rotateHandle.setRect(r.bottomLeft().x()-10,r.bottomLeft().y(),10,10)
             #>>>self.rescaleHandle.setRect(r.topRight().x(),r.topRight().y()-10,10,10)
             self.moveHandle.update(self.moveHandle.rect())
@@ -1788,8 +1918,9 @@ class LazyTextObject(QtWidgets.QGraphicsRectItem):
             else:
                 self.setHtml(content[0])
 
-            LazyTextUtils.applyBlockSettings(content[2], self.textItem.document())
             if 'wrapmode' in content[1]: self.textWrapMode = content[1]['wrapmode']
+            LazyTextUtils.applyBlockSettings(content[2], self.textItem.document())
+            
 
             '''
             font = self.textItem.font()
@@ -2057,6 +2188,7 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
         
         
         if self.currentMode == self.EDIT_MODE and event.button() == QtCore.Qt.RightButton:
+            print ("ON ITEM", onItem)
             if onItem is not None and (onItem is self.selectedObject or onItem.parentItem() is self.selectedObject): return
             print ("CANCEL ITEM", onItem, self.selectedObject)
             self.parent().cancelItem()
@@ -2073,7 +2205,7 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
         
 
         
-        print ("SSINGLE")
+        print ("SSINGLE", type(self.selectedObject), self.selectedObject)
         if self.selectedObject is None:
             if self.currentMode == self.EDIT_MODE:
                 print ("WRITE ITEM!")
@@ -2086,7 +2218,7 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
                 selectedAlienItem = self.parent().selectAlienItemAt(event.scenePos())
                 
                 if selectedAlienItem is None or isinstance(selectedAlienItem, LazyTextBackground):
-                    print ("START DRAW!")
+                    print ("START DRAW!", self.currentMode)
                     self.setCurrentMode(self.DRAW_MODE)
                     self.modifyMode = False
                     self.drawTextObject = LazyTextObject()
@@ -2096,7 +2228,7 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
                     r = QtCore.QRectF(self.drawStartPos, self.drawStartPos)
                     self.drawTextObject.setRect(r)
                 else:
-                    print ("GET ALIEN OBJECTS!")
+                    print ("GET ALIEN OBJECTS!", selectedAlienItem, type(selectedAlienItem['item']), selectedAlienItem['item'] )
                     self.setCurrentMode(self.WORK_MODE)
                     selectedAlienItem['item'].textItem.setFocus()
                     self.selectedObject = selectedAlienItem['item']
@@ -2123,6 +2255,7 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
         
 
     def mouseMoveEvent(self, event):
+        #print ("MOVY!", self.currentMode, isinstance(self.selectedObject, LazyTextHandle))
         if self.drawTextObject is not None:
             r = QtCore.QRectF(self.drawStartPos, event.scenePos()).normalized()
             self.drawTextObject.setRect(r)
@@ -2141,7 +2274,7 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
                 self.selectedObject.posY = event.scenePos().y()
             elif self.selectedObject.handleType == LazyTextHandle.RESIZE:
                 parentItem.textWrapMode = LazyTextObject.TEXTWRAP_MODE
-                objectRect = parentItem.rect().adjusted(0, 0, posDiffX, posDiffY)
+                objectRect = parentItem.rect().adjusted(0, 0, posDiffX, 0)
                 parentItem.setRect(objectRect)
                 parentItem.textItem.setPos(objectRect.x(), objectRect.y())
                 parentItem.textItem.setTextWidth(
