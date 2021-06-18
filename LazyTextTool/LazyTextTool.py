@@ -1,6 +1,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from krita import *
 from .LazyTextToolFunc import *
+import re
 
 class LazyTextTool(Extension):
     def __init__(self, parent):
@@ -396,7 +397,7 @@ class LazyTextTool(Extension):
             htmlContent = textObject.textItem.toHtml()
             htmlContent = htmlContent.replace('<br />&lt;br data-wordwrap=&quot;true&quot; /&gt;','<br data-wordwrap="true" />')
             htmlContent = htmlContent.replace('&lt;br data-wordwrap=&quot;true&quot; /&gt;','<br data-wordwrap="true" />')
-            
+            htmlContent = re.sub(r'(<p[^>]*?>)<br /></p>',r'\1 </p>', htmlContent)
             
             print ("OUT HTML", htmlContent)
             
