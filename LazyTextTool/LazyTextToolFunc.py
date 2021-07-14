@@ -1699,10 +1699,15 @@ class LazyTextEdit(QtWidgets.QGraphicsTextItem):
                 blockUData = LazyTextBlockUserData()
                 iblock.setUserData(blockUData)
 
-            if blockCount > 1 and lastHeight > 0 and blockUData.lineHeight() == 0 and blockUData.lineScale() == 1:
-                print ("NEW BLOCK!")
-                blockUData.setLineHeight(lastHeight)
-                blockUData.setLineScale(lastScale)
+            if blockUData.lineHeight() == 0 and blockUData.lineScale() == 1:
+                if blockCount == 1 and lastHeight == 0:
+                    print ("FIRST BLOCK!")
+                    fm = painter.fontMetrics()
+                    blockUData.setLineHeight(fm.height())
+                elif blockCount > 1 and lastHeight > 0:
+                    print ("NEW BLOCK!")
+                    blockUData.setLineHeight(lastHeight)
+                    blockUData.setLineScale(lastScale)
                 
             if iblock.contains(cursorPos):
                 cursorBlockPos = cursorPos - iblock.position()
