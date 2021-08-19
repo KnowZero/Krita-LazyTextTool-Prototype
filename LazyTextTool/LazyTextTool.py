@@ -3,6 +3,7 @@ from krita import *
 from .LazyTextToolFunc import *
 import re
 
+
 class LazyTextTool(Extension):
     def __init__(self, parent):
         super().__init__(parent)
@@ -14,6 +15,8 @@ class LazyTextTool(Extension):
         self.active = False
         self.toolboxButtonFilterItem = None
         self.onTab = 0
+        self.kritaVersion = int(Krita.instance().version().split(".")[0])
+        self.screenDPI = QtGui.QGuiApplication.screens()[0].logicalDotsPerInch()
         #self.bindToolButton()
 
     class toolboxButtonFilter(QtWidgets.QToolButton):
@@ -25,6 +28,7 @@ class LazyTextTool(Extension):
             if self.textTool.active:
                 if event.type() == 12:
                     if obj.isChecked():
+                        print ("OPEN CANVAS FROM FILTER")
                         LazyTextTool.openTextCanvas(self.textTool)
                     else:
                         LazyTextTool.closeTextCanvas(self.textTool)
@@ -70,16 +74,35 @@ class LazyTextTool(Extension):
         def textObjectFromLayerAndShape(self, textItem):
             textObject = LazyTextObject()
             docRes = self.scene.canvasResolution
-                    
-            r = QtCore.QRectF(
-                        LazyTextUtils.ptsToPx(textItem[1].position().x(), docRes),
-                        LazyTextUtils.ptsToPx(textItem[1].position().y(), docRes),
+            textObject.layer = textItem[0]
+            textObject.shape = textItem[1]
+            
+            r = QtCore.QRectF()
+            
+            position = [0,0]
+            #position = [LazyTextUtils.ptsToPx(textItem[1].position().x(), docRes), LazyTextUtils.ptsToPx(textItem[1].position().y(), docRes)  ]
+            
+            if self.textTool.kritaVersion < 5:
+                position = [LazyTextUtils.ptsToPx(textItem[1].position().x(), docRes), LazyTextUtils.ptsToPx(textItem[1].position().y(), docRes)  ]
+                r = QtCore.QRectF(
+                        position[0],
+                        position[1],
                         
                         LazyTextUtils.ptsToPx(textItem[1].boundingBox().width(), docRes),
                         LazyTextUtils.ptsToPx(textItem[1].boundingBox().height(), docRes)
-            )
+                )
+            else:
+                r = QtCore.QRectF(
+                        position[0],
+                        position[1],
+                        
+                        textItem[1].boundingBox().width(),
+                        textItem[1].boundingBox().height()
+                ) 
                    
-            svgContent = textItem[1].toSvg()
+            svgContent = textItem[1].toSvg(False,False) if self.textTool.kritaVersion >= 5 else textItem[1].toSvg()
+            #this is a temp fix that should be changed:
+            svgContent = svgContent.replace(' krita:',' krita_')
                     
             print ("SVG", svgContent)
 
@@ -102,6 +125,21 @@ class LazyTextTool(Extension):
             textObject.textItem.disableEditing()
             textObject.textItem.setOpacity(0)
             
+            if self.textTool.kritaVersion >= 5:
+                t = textItem[1].transformation()
+                print ("POS TEST", [LazyTextUtils.ptsToPx(textItem[1].position().x(), docRes), LazyTextUtils.ptsToPx(textItem[1].position().y(), docRes)  ], [ LazyTextUtils.ptsToPx(t.dx(), docRes), LazyTextUtils.ptsToPx(t.dy(), docRes) ]  )
+                print("transformdata", docContent[1]['transform'], [  t.m11(), t.m12(), t.m21(), t.m22(), t.dx(), t.dy() ] )
+                
+                m = list(map(lambda x: LazyTextUtils.ptsToPx(x, docRes) ,[t.m11(), t.m12(), t.m21(), t.m22(), t.dx(), t.dy() ]))
+                
+                print ("MYNEWHEIGHT1=",t.dy(), m[5])
+                textObject.setTransform( QtGui.QTransform( m[0], m[1], m[2], m[3], 
+                                                          #LazyTextUtils.ptsToPx(textItem[1].position().x(), docRes),LazyTextUtils.ptsToPx(textItem[1].position().y(), docRes)
+                                                          m[4], m[5] 
+                                                          #0,0
+                                                          ) )
+                # boundry border probably doesn't match the transformation
+
             return textObject
             
         def selectAlienItemAt(self, mousePoint):
@@ -145,11 +183,11 @@ class LazyTextTool(Extension):
                     #>>    textObject.textItem.setOpacity(0)
                     
                 #alienTextItem[0].setVisible(False)
-                self.selectedAlienItem = {'item':selectedItem, 'layer':alienTextItem[0] }                
+                self.selectedAlienItem = {'item':selectedItem, 'shape':alienTextItem[1], 'layer':alienTextItem[0] }                
                 self.textTool.currentDocument.setActiveNode(alienTextItem[0])
                 currentDocument.refreshProjection()
 
-                return {'item':selectedItem, 'layer':alienTextItem[0] }
+                return {'item':selectedItem, 'shape':alienTextItem[1], 'layer':alienTextItem[0] }
 
             return None  
             
@@ -174,11 +212,11 @@ class LazyTextTool(Extension):
 
 
         def findSingleTextInLayer(self, nodeLayer, mousePoint):
-            if nodeLayer.type() == 'vectorlayer' and nodeLayer.visible() and len(nodeLayer.shapes()) == 1:
+            if nodeLayer.type() == 'vectorlayer' and nodeLayer.visible() and (self.textTool.kritaVersion >= 5 or len(nodeLayer.shapes()) == 1):
                 for shape in nodeLayer.shapes():
                     if shape.type() == 'KoSvgTextShapeID' and shape.boundingBox().contains(mousePoint):
                         return [nodeLayer, shape]
-            return None    
+            return None            
         
         def findTextAt(self, mousePoint):
             return self.findTextInGroup(mousePoint, self.textTool.currentDocument.activeNode().parentNode().childNodes())
@@ -249,11 +287,16 @@ class LazyTextTool(Extension):
         def cleanup(self):
             self.scene.cleanup()
         
-        def cancelItem(self):
+        def cancelItem(self, textObject):
             self.textTool.resetCurrentLayer()
             currentLayer = self.textTool.currentLayer
-            if self.scene.modifyMode and currentLayer.type() == 'vectorlayer' and currentLayer.visible() is False and len(currentLayer.shapes()) == 1:
-                currentLayer.setVisible(True)
+            if self.scene.modifyMode and currentLayer.type() == 'vectorlayer':
+                if self.textTool.kritaVersion >= 5:
+                    textObject.shape.setVisible(True)
+                    textObject.shape.update()
+                
+                elif currentLayer.visible() is False and len(currentLayer.shapes()) == 1:
+                    currentLayer.setVisible(True)
                 self.textTool.currentDocument.refreshProjection()
                 shapes = currentLayer.shapes()
                 self.fillLayer(currentLayer, shapes)
@@ -270,8 +313,12 @@ class LazyTextTool(Extension):
             #if self.scene.modifyMode:
             #    self.editItemQueue
             
-            if self.scene.modifyMode and currentLayer.type() == 'vectorlayer' and currentLayer.visible() and len(currentLayer.shapes()) == 1:
-                currentLayer.setVisible(False)
+            if self.scene.modifyMode and currentLayer.type() == 'vectorlayer' and currentLayer.visible():
+                if self.textTool.kritaVersion >= 5:
+                    textObject.shape.setVisible(False)
+                    textObject.shape.update()
+                elif len(currentLayer.shapes()) == 1:
+                    currentLayer.setVisible(False)
                 QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.IBeamCursor)
                 self.textTool.currentDocument.refreshProjection()
             print ("EDIT ITEM2", currentLayer.type())
@@ -283,14 +330,21 @@ class LazyTextTool(Extension):
             if textObject.textItem.toPlainText() == '':
                 self.helperDialog.target = None
                 self.scene.removeItem(textObject)
-                if self.scene.modifyMode and currentLayer.type() == 'vectorlayer' and currentLayer.visible() is False and len(currentLayer.shapes()) == 1:
-                    currentLayer.remove()
-                    currentDocument.refreshProjection()
+                if self.scene.modifyMode and currentLayer.type() == 'vectorlayer':
+                    if self.textTool.kritaVersion >= 5:
+                        textObject.shape.remove()
+                    elif currentLayer.visible() is False and len(currentLayer.shapes()) == 1:
+                        currentLayer.remove()
+                        currentDocument.refreshProjection()
                 print ("REMOVED BLANK")
                 return
             
           
-
+            t = textObject.transform()
+            st = textObject.sceneTransform()
+            sp = textObject.scenePos()
+            p = textObject.rect()
+            print ("SCENE TRANSFORM", st.dx(), st.dy(), "DTRANSFORM", st.dx(), st.dy(), "SCENE POS", sp.x(), sp.y(), "RPOS", p.x(), p.y() )
             
             
             print ("CHECK NEW LAYER!", currentLayer.type(), currentLayer.visible())
@@ -307,16 +361,19 @@ class LazyTextTool(Extension):
                 parentLayer = currentLayer.parentNode()
                 
 
-            if self.scene.modifyMode:    
-                writeItemQueue['remove_layer'] = currentLayer
+            if self.textTool.kritaVersion >= 5 and (self.scene.modifyMode or self.scene.appendMode):
+                self.finishWriteItem(writeItemQueue)
                 
                 
-            newLayer = currentDocument.createVectorLayer('LazyText Work Layer')
+            else:
+                if self.scene.modifyMode:
+                    writeItemQueue['remove_layer'] = currentLayer
+                newLayer = currentDocument.createVectorLayer('LazyText Work Layer')
                 
-            writeItemQueue['layer'] = newLayer
-            self.writeItemQueue = writeItemQueue
-            parentLayer.addChildNode(newLayer, (None if currentLayer.type() == 'grouplayer' else currentLayer) )
-            currentDocument.setActiveNode(newLayer)
+                writeItemQueue['layer'] = newLayer
+                self.writeItemQueue = writeItemQueue
+                parentLayer.addChildNode(newLayer, (None if currentLayer.type() == 'grouplayer' else currentLayer) )
+                currentDocument.setActiveNode(newLayer)
 
             self.helperDialog.hideDialog()
 
@@ -375,16 +432,21 @@ class LazyTextTool(Extension):
                         'resolution' : currentDocument.resolution(),
                         'ascent' : blockSettings[0]['ascent'],
                         'blockSettings' : blockSettings,
-                        'width': LazyTextUtils.pxToPts(textObject.rect().width(), currentDocument.resolution()),
+                        #'width': LazyTextUtils.pxToPts(opts['width'], currentDocument.resolution()),
+                        'width': textObject.textItem.document().textWidth(),
                         'wrap' : textObject.textWrapMode,
-                        'unique' : textObject.textItem.toPlainText() + str(textObject.rect().width())
+                        'unique' : textObject.textItem.toPlainText() + str(textObject.rect().width()),
+                        #'transform': textObject.sceneTransform() if self.scene.modifyMode else None,
+                        'transform': textObject.transform() if self.scene.modifyMode else None,
             }
+            
 
 
 
             doc = textObject.textItem.document()
             tcursor=textObject.textItem.textCursor()
             textContent = textObject.textItem.toPlainText()
+            textObject.textItem.setOpacity(0)
         
             for bi in range(len(blockSettings)-1,-1,-1):
                 for li in range(len(blockSettings[bi]['lines'])-1,0,-1):
@@ -395,46 +457,62 @@ class LazyTextTool(Extension):
             
             textContent=textContent.replace("\n", " ")
             htmlContent = textObject.textItem.toHtml()
+            print ("PREOUT HTML", htmlContent)
             htmlContent = htmlContent.replace('<br />&lt;br data-wordwrap=&quot;true&quot; /&gt;','<br data-wordwrap="true" />')
             htmlContent = htmlContent.replace('&lt;br data-wordwrap=&quot;true&quot; /&gt;','<br data-wordwrap="true" />')
             htmlContent = re.sub(r'(<p[^>]*?>)<br /></p>',r'\1 </p>', htmlContent)
+
             
             print ("OUT HTML", htmlContent)
             
             if textContent != '':
                 svgItem = LazyTextUtils.htmlToSvg(htmlContent, opts )
                 svgContent = LazyTextUtils.svgDocument(svgItem, currentDocument.width(), currentDocument.height(), currentDocument.resolution() )
-                self.writeSvgContent(svgContent, currentLayer)
+                print ("OUT SVG", svgContent)
+                shapes = self.writeSvgContent(svgContent, currentLayer)
                 currentDocument.waitForDone()
-                textObject.textItem.setOpacity(0)
                 
-                currentDocument.activeNode().setName( re.search('^(.{1,50})',textContent).group(1) )
+                
+                if self.textTool.kritaVersion >= 5:
+                    if self.scene.modifyMode: textObject.shape.remove()
+                    self.scene.removeItem(textObject)
+                    if self.scene.modifyMode or self.scene.appendMode: 
+                        self.textObjectFromLayerAndShape( [currentLayer, shapes[0]] )
+                    else:
+                        self.textTool.resetCurrentLayer()
+                    #textObject.layer = currentLayer
+                    #textObject.shape = shapes[0]
+                else:
+                    self.textTool.resetCurrentLayer()
+                    
+                
+                print ("APPEND MODE:", self.scene.appendMode, len(currentLayer.shapes()) )
+                if not self.scene.appendMode and len(currentLayer.shapes()) <= 1: currentLayer.setName( re.search('^(.{1,50})',textContent).group(1) )
                 currentDocument.refreshProjection()
                 
             self.helperDialog.target = None
-            textObject.textItem.setOpacity(0)
+            #???textObject.textItem.setOpacity(0)
             #self.scene.removeItem(textObject)
             if removeLayer is not None:
                 removeLayer.remove()
             
         def writeSvgContent(self, svgContent, layer):
-            #if layer is not None:    
-                
-            #doc.waitForDone()  # ==> waitForDone() doesn't work, need to apply a sleep :-(
-                #LazyTextUtils.sleep(150)
-
-            mimeOldContent=QtGui.QGuiApplication.clipboard().mimeData();
-            mimeStoreContent=QtCore.QMimeData() 
-            for mimeType in mimeOldContent.formats(): 
-                mimeStoreContent.setData(mimeType,QtCore.QByteArray(mimeOldContent.data(mimeType))) 
+            if self.textTool.kritaVersion >= 5:
+                return layer.addShapesFromSvg(svgContent)
+            else:
+                mimeOldContent=QtGui.QGuiApplication.clipboard().mimeData();
+                mimeStoreContent=QtCore.QMimeData() 
+                for mimeType in mimeOldContent.formats(): 
+                    mimeStoreContent.setData(mimeType,QtCore.QByteArray(mimeOldContent.data(mimeType))) 
         
-            mimeNewContent=QtCore.QMimeData()
-            mimeNewContent.setData('image/svg', svgContent.encode())
+                mimeNewContent=QtCore.QMimeData()
+                mimeNewContent.setData('image/svg', svgContent.encode())
                 #print ("mime",mimeOldContent)
-            QtGui.QGuiApplication.clipboard().setMimeData(mimeNewContent)
+                QtGui.QGuiApplication.clipboard().setMimeData(mimeNewContent)
                 #print ("mime2",mimeOldContent)
-            Krita.instance().action('edit_paste').trigger()
-            QtGui.QGuiApplication.clipboard().setMimeData(mimeStoreContent)
+                Krita.instance().action('edit_paste').trigger()
+                QtGui.QGuiApplication.clipboard().setMimeData(mimeStoreContent)
+                return None
             
     def resetCurrentLayer(self):
         self.setCurrentLayer()
@@ -459,6 +537,7 @@ class LazyTextTool(Extension):
             if soft == False: self.unbindLayerList2()
             QtWidgets.QApplication.restoreOverrideCursor()
             QtWidgets.QApplication.restoreOverrideCursor()
+            
 
     def openTextCanvas(self):
         if self.currentTextCanvas is None:
@@ -545,6 +624,7 @@ class LazyTextTool(Extension):
         layerList = layerBox.findChild(QtWidgets.QTreeView,"listLayers")
         
         layerList.selectionModel().selectionChanged.connect(self.layerChanged)
+        layerList.model().sourceModel().rowsRemoved.connect(self.layerRemoved)
     
     def documentChanged(self):
         print ("DOCUMENT CHANGED!", self.currentDocument, Krita.instance().activeDocument())
@@ -556,9 +636,11 @@ class LazyTextTool(Extension):
         if textToolButton.isChecked():
             LazyTextTool.openTextCanvas(self)
 
-            
+    def layerRemoved(self):
+        self.layerChanged(None,None)        
     
     def layerChanged(self, selected, deselected):
+        print ("ONTAB", self.onTab, self.mdi.findChild(QtWidgets.QTabBar).currentIndex() )
         if self.onTab != self.mdi.findChild(QtWidgets.QTabBar).currentIndex():
             self.documentChanged()
         
@@ -577,7 +659,7 @@ class LazyTextTool(Extension):
             self.currentTextCanvas.selectedAlienItem = None
             return
         
-        if self.currentLayer.type() == 'vectorlayer' and self.currentLayer.visible() is False and self.currentTextCanvas.scene.modifyMode:
+        if self.currentLayer.type() == 'vectorlayer' and self.currentLayer.visible() is False and self.currentTextCanvas.scene.modifyMode and self.kritaVersion < 5:
             self.currentTextCanvas.scene.modifyMode=False
             self.currentLayer.setVisible(True)
             self.currentDocument.refreshProjection()
@@ -590,7 +672,7 @@ class LazyTextTool(Extension):
             if len(shapes) == 0:
                 self.currentTextCanvas.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, False)
                 return
-            elif len(shapes) == 1 and shapes[0].type() == 'KoSvgTextShapeID':
+            elif (len(shapes) == 1 or self.kritaVersion >= 5) and shapes[0].type() == 'KoSvgTextShapeID':
                 self.currentTextCanvas.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, False)
                 self.currentTextCanvas.fillLayer(self.currentLayer, shapes)
                 return
@@ -607,6 +689,7 @@ class LazyTextTool(Extension):
         layerList = layerBox.findChild(QtWidgets.QTreeView,"listLayers")
         
         layerList.selectionModel().selectionChanged.disconnect(self.layerChanged)
+        layerList.model().sourceModel().rowsRemoved.disconnect(self.layerRemoved)
     
     def bindLayerList(self):
         qwin = Krita.instance().activeWindow().qwindow()
@@ -625,7 +708,7 @@ class LazyTextTool(Extension):
 
     def setup(self):
         pass
-
+    
     def closeViewEvent(self):
         print ("CLOSE VIEW", Krita.instance().activeWindow().activeView().visible())
         self.closeTextCanvas(True)
