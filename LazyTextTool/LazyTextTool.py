@@ -436,11 +436,12 @@ class LazyTextTool(Extension):
                         'width': textObject.textItem.document().textWidth(),
                         'wrap' : textObject.textWrapMode,
                         'unique' : textObject.textItem.toPlainText() + str(textObject.rect().width()),
+                        'transform': None,
                         #'transform': textObject.sceneTransform() if self.scene.modifyMode else None,
-                        'transform': textObject.transform() if self.scene.modifyMode else None,
             }
             
-
+            if self.textTool.kritaVersion >= 5:
+                opts['transform']=textObject.transform() if self.scene.modifyMode else None
 
 
             doc = textObject.textItem.document()
@@ -637,7 +638,8 @@ class LazyTextTool(Extension):
             LazyTextTool.openTextCanvas(self)
 
     def layerRemoved(self):
-        self.layerChanged(None,None)        
+        if self.kritaVersion >= 5 or self.currentTextCanvas.writeItemQueue is None:
+            self.layerChanged(None,None)        
     
     def layerChanged(self, selected, deselected):
         print ("ONTAB", self.onTab, self.mdi.findChild(QtWidgets.QTabBar).currentIndex() )
