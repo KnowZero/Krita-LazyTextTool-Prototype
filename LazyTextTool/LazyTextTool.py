@@ -556,7 +556,14 @@ class LazyTextTool(Extension):
                             break;
             
             subWindow = self.mdi.activeSubWindow()
-            self.onTab = self.mdi.findChild(QtWidgets.QTabBar).currentIndex()
+            onTab = self.mdi.findChild(QtWidgets.QTabBar)
+            
+            if onTab:
+                self.onTab = onTab.currentIndex()
+            else:
+                tabs = [ idx for idx, obj in enumerate(self.mdi.subWindowList()) if obj is subWindow ]
+                self.onTab = tabs[0]
+
             self.scrollArea = subWindow.findChild(QtWidgets.QAbstractScrollArea)
             self.resetCurrentLayer()
             self.currentTextCanvas = self.TextCanvas(self,self.scrollArea)
