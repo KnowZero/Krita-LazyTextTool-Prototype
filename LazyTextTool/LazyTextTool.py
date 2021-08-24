@@ -543,7 +543,18 @@ class LazyTextTool(Extension):
     def openTextCanvas(self):
         if self.currentTextCanvas is None:
             qwin = Krita.instance().activeWindow().qwindow()
-            self.mdi = qwin.centralWidget().findChild(QtWidgets.QMdiArea)
+            centralWidget = qwin.centralWidget()
+            if centralWidget is not None:
+                self.mdi = centralWidget.findChild(QtWidgets.QMdiArea)
+            else:
+                for win in QtWidgets.QApplication.topLevelWidgets():
+                    winName = win.objectName()
+                    if winName.startswith('MainWindow'):
+                        mdi = win.findChild(QtWidgets.QMdiArea)
+                        if mdi:
+                            self.mdi = mdi
+                            break;
+            
             subWindow = self.mdi.activeSubWindow()
             self.onTab = self.mdi.findChild(QtWidgets.QTabBar).currentIndex()
             self.scrollArea = subWindow.findChild(QtWidgets.QAbstractScrollArea)
