@@ -2172,14 +2172,19 @@ class LazyTextObject(QtWidgets.QGraphicsRectItem):
         );
         '''
         #if self.textMode != self.TYPEWRITER_MODE:
-        self.textItem.document().setTextWidth(
-                #???LazyTextUtils.pxToPts(r.width(), self.scene().canvasResolution)
+        if LazyTextUtils.APP_VERSION < 5:
+            self.textItem.document().setTextWidth(
+                LazyTextUtils.pxToPts(r.width(), self.scene().canvasResolution)
+            )
+            r.setHeight( LazyTextUtils.ptsToPx( self.textItem.boundingRect().height(), self.scene().canvasResolution  ) )
+
+        else:
+            self.textItem.document().setTextWidth(
                 textWidth
             )
         
-        if content is not None:
-            r.setHeight(  self.textItem.boundingRect().height()  )
-        #>>???    r.setHeight( LazyTextUtils.ptsToPx( self.textItem.boundingRect().height(), self.scene().canvasResolution  ) )
+            if content is not None:
+                r.setHeight(  self.textItem.boundingRect().height()  )
 
         print ("NHEIGHT", LazyTextUtils.ptsToPx( self.textItem.boundingRect().height(), self.scene().canvasResolution  ), r.height() )
         print ("width()", LazyTextUtils.pxToPts(r.width(), self.scene().canvasResolution))
@@ -2493,36 +2498,51 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
 
             #posDiffX = LazyTextUtils.distance(self.selectedObject.posX, mousePoint.x())
             #posDiffY = LazyTextUtils.distance(self.selectedObject.posY, mousePoint.y())
-      
-            posDiffX = LazyTextUtils.distance(parentItem.pos().x(), mousePoint.x())
-            posDiffY = LazyTextUtils.distance(parentItem.pos().y(), mousePoint.y())      
+            
+            posDiffX = 0
+            posDiffY = 0
+            
+            if LazyTextUtils.APP_VERSION < 5:
+                posDiffX = LazyTextUtils.distance(self.selectedObject.posX, event.scenePos().x())
+                posDiffY = LazyTextUtils.distance(self.selectedObject.posY, event.scenePos().y())
+            else:
+                posDiffX = LazyTextUtils.distance(parentItem.pos().x(), mousePoint.x())
+                posDiffY = LazyTextUtils.distance(parentItem.pos().y(), mousePoint.y())      
       
             #posDiffX = LazyTextUtils.distance(self.selectedObject.posX, event.scenePos().x())
             #posDiffY = LazyTextUtils.distance(self.selectedObject.posY, event.scenePos().y())
             
             if self.selectedObject.handleType == LazyTextHandle.MOVE:
                 
-                
-                parentItem.trans = parentItem.trans.translate( posDiffX, posDiffY+10 )
-                parentItem.updateSelf = True
+                if LazyTextUtils.APP_VERSION < 5:
+                    parentItem.setRect( parentItem.rect().adjusted( posDiffX, posDiffY, posDiffX, posDiffY )  )
+                    parentItem.textItem.setPos( parentItem.rect().x(),parentItem.rect().y() )
+                    self.selectedObject.posX = event.scenePos().x()
+                    self.selectedObject.posY = event.scenePos().y()
+                else:
+                    parentItem.trans = parentItem.trans.translate( posDiffX, posDiffY+10 )
+                    parentItem.updateSelf = True
 
 
-                self.selectedObject.posX = mousePoint.x()
-                self.selectedObject.posY = mousePoint.y()
+
 
                 #self.selectedObject.posX = event.scenePos().x()
                 #self.selectedObject.posY = event.scenePos().y()
             elif self.selectedObject.handleType == LazyTextHandle.RESIZE:
                 parentItem.textWrapMode = LazyTextObject.TEXTWRAP_MODE
-                print ("DIFF", posDiffX, parentItem.rect().width())
-                objectRect = parentItem.rect().adjusted(0, 0, posDiffX-parentItem.rect().width(), 0)
-                parentItem.setRect(objectRect)
-                #parentItem.textItem.setPos(objectRect.x(), objectRect.y())
-                parentItem.updateSelf = True
-                parentItem.textItem.setTextWidth(
-                    objectRect.width()
-                    #LazyTextUtils.pxToPts(objectRect.width(), self.canvasResolution)
+                
+                if LazyTextUtils.APP_VERSION < 5:
+                    objectRect = parentItem.rect().adjusted(0, 0, posDiffX, 0)
+                    parentItem.setRect(objectRect)
+                    parentItem.textItem.setPos(objectRect.x(), objectRect.y())
+                    parentItem.textItem.setTextWidth(
+                        LazyTextUtils.pxToPts(objectRect.width(), self.canvasResolution)
                     )
+                else:
+                    objectRect = parentItem.rect().adjusted(0, 0, posDiffX-parentItem.rect().width(), 0)
+                    parentItem.setRect(objectRect)
+                    parentItem.updateSelf = True
+                    parentItem.textItem.setTextWidth(objectRect.width())
                 
                 doc = parentItem.textItem.document()
                 #tcursor=parentItem.textItem.textCursor()
