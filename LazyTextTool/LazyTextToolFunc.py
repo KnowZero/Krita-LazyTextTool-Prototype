@@ -2036,6 +2036,7 @@ class LazyTextObject(QtWidgets.QGraphicsRectItem):
         self.shape = None
         self.updateSelf = False
         self.trans = None
+        self.firstUse = True
 
 
 
@@ -2112,6 +2113,7 @@ class LazyTextObject(QtWidgets.QGraphicsRectItem):
         textWidth=None
         
         if content is not None:
+            self.firstUse = False
             if isinstance(content[0], QtGui.QTextDocument):
                 self.setDocument(content[0])
             else:
@@ -2469,7 +2471,7 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
                     
 
 
-        elif isinstance(self.selectedObject, LazyTextEdit):
+        elif isinstance(self.selectedObject, LazyTextEdit) or isinstance(self.selectedObject, LazyTextHandle):
             self.selectedObject = self.selectedObject.parentItem()
         #elif self.selectedObject.objectType == "LazyTextTempBox":
         #    self.drawTextObject = LazyTextObject()
@@ -2502,7 +2504,7 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
             posDiffX = 0
             posDiffY = 0
             
-            if LazyTextUtils.APP_VERSION < 5:
+            if LazyTextUtils.APP_VERSION < 5 or parentItem.firstUse is True:
                 posDiffX = LazyTextUtils.distance(self.selectedObject.posX, event.scenePos().x())
                 posDiffY = LazyTextUtils.distance(self.selectedObject.posY, event.scenePos().y())
             else:
@@ -2514,7 +2516,7 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
             
             if self.selectedObject.handleType == LazyTextHandle.MOVE:
                 
-                if LazyTextUtils.APP_VERSION < 5:
+                if LazyTextUtils.APP_VERSION < 5 or parentItem.firstUse is True:
                     parentItem.setRect( parentItem.rect().adjusted( posDiffX, posDiffY, posDiffX, posDiffY )  )
                     parentItem.textItem.setPos( parentItem.rect().x(),parentItem.rect().y() )
                     self.selectedObject.posX = event.scenePos().x()
@@ -2531,7 +2533,7 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
             elif self.selectedObject.handleType == LazyTextHandle.RESIZE:
                 parentItem.textWrapMode = LazyTextObject.TEXTWRAP_MODE
                 
-                if LazyTextUtils.APP_VERSION < 5:
+                if LazyTextUtils.APP_VERSION < 5 or parentItem.firstUse is True:
                     objectRect = parentItem.rect().adjusted(0, 0, posDiffX, 0)
                     parentItem.setRect(objectRect)
                     parentItem.textItem.setPos(objectRect.x(), objectRect.y())
