@@ -327,6 +327,9 @@ class LazyTextTool(Extension):
             print ("EDIT ITEM2", currentLayer.type())
             
         def writeItem(self, textObject):
+            if textObject is None:
+                print ("NO OBJECT SELECTED!")
+                return
             currentDocument = self.textTool.currentDocument
             currentLayer = self.textTool.currentLayer
             
