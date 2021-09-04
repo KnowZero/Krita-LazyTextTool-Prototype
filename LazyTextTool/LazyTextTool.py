@@ -331,7 +331,7 @@ class LazyTextTool(Extension):
             currentLayer = self.textTool.currentLayer
             
             if textObject.textItem.toPlainText() == '':
-                self.helperDialog.target = None
+                self.helperDialog.hideDialog()
                 self.scene.removeItem(textObject)
                 if self.scene.modifyMode and currentLayer.type() == 'vectorlayer':
                     if self.textTool.kritaVersion >= 5:
