@@ -2311,6 +2311,8 @@ class LazyTextView(QtWidgets.QGraphicsView):
         super(LazyTextView, self).__init__(parent)
         self.setStyleSheet("background: rgba(90,0,0,0%)")
         self.setFrameStyle(QtWidgets.QFrame.NoFrame)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         
     def wheelEvent(self, event):
         self.parent().viewWheelEvent(event)
