@@ -1280,11 +1280,12 @@ class LazyTextHelper(QtWidgets.QWidget):
         tcursor = self.getCursor()
         fmt = QtGui.QTextCharFormat()
         print ("SETMYFONT")
+        orgFontSize = fontSize
         fontSize = float(LazyTextUtils.calcFontSize( str(fontSize)+"pt","primaryScreen",200,""))
         print("SETFONTO", fontSize)
         fmt.setFontPointSize( fontSize )
         tcursor.mergeCharFormat(fmt)
-        self.defaultSettings['font'].setPointSizeF(fontSize)
+        self.defaultSettings['font'].setPointSizeF(orgFontSize)
         if self.target.toPlainText() == '':
             font = self.target.font()
             font.setPointSizeF(fontSize)
