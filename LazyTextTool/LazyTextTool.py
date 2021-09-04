@@ -31,6 +31,8 @@ class LazyTextTool(Extension):
                         print ("OPEN CANVAS FROM FILTER")
                         LazyTextTool.openTextCanvas(self.textTool)
                     else:
+                        if self.textTool.currentTextCanvas is not None:
+                            self.textTool.currentTextCanvas.writeItem(self.textTool.currentTextCanvas.scene.selectedObject)
                         LazyTextTool.closeTextCanvas(self.textTool)
             return False
         
