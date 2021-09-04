@@ -69,7 +69,8 @@ class LazyTextTool(Extension):
             self.show()
         
         def fillLayer(self, layer, shapes):
-                self.textObjectFromLayerAndShape([ layer, shapes[0] ])
+            for shape in shapes:
+                self.textObjectFromLayerAndShape([ layer, shape ])
             
         def textObjectFromLayerAndShape(self, textItem):
             textObject = LazyTextObject()
