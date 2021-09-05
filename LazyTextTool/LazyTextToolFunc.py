@@ -1110,13 +1110,9 @@ class LazyTextHelper(QtWidgets.QWidget):
         self.boldButton.setMenu(self.boldMenu)
     
     def setDialogDefaults(self):
-        if self.firstRun == False:
-            return;
         self.setCurrentFont(self.defaultSettings['font'])
         self.setCurrentFontSize(self.defaultSettings['font'].pointSizeF())
-     
-        
-        
+
     
     def showFor(self, target, useDefaults = True):
         if self.target is not None:
@@ -1124,7 +1120,10 @@ class LazyTextHelper(QtWidgets.QWidget):
         
         self.target = target
         self.target.cursorPositionChanged.connect(self.updateFormatButtons)
-        if useDefaults == True: 
+        if useDefaults is True:
+            if self.firstRun is False:
+                self.defaultSettings['font']=QtGui.QFont()
+                self.defaultSettings['font'].setPointSizeF(10.0)
             self.setDialogDefaults()
         self.updateFormatButtons(self.target.textCursor())
         self.firstRun = True
