@@ -291,6 +291,7 @@ class LazyTextTool(Extension):
             self.scene.cleanup()
         
         def cancelItem(self, textObject):
+            self.helperDialog.hideDialog()
             self.textTool.resetCurrentLayer()
             currentLayer = self.textTool.currentLayer
             if self.scene.modifyMode and currentLayer.type() == 'vectorlayer':
