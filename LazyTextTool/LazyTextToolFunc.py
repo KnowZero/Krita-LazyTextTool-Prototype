@@ -2312,10 +2312,30 @@ class LazyTextView(QtWidgets.QGraphicsView):
         self.setFrameStyle(QtWidgets.QFrame.NoFrame)
         self.verticalScrollBar().hide()
         self.horizontalScrollBar().hide()
+    
+    
+    def keyPressEvent(self, event):
+        if not self.parent().viewKeyPressEvent(event): return
+        super(LazyTextView, self).keyPressEvent(event)
+
+    def keyReleaseEvent(self, event):
+        if not self.parent().viewKeyReleaseEvent(event): return
+        super(LazyTextView, self).keyReleaseEvent(event)
         
+    def mousePressEvent(self, event):
+        if not self.parent().viewMousePressEvent(event): return
+        super(LazyTextView, self).mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if not self.parent().viewMouseReleaseEvent(event): return
+        super(LazyTextView, self).mouseReleaseEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if not self.parent().viewMouseMoveEvent(event): return
+        super(LazyTextView, self).mouseMoveEvent(event)
+    
     def wheelEvent(self, event):
         self.parent().viewWheelEvent(event)
-        print ("View Wheel")
         
     def enterEvent(self, event):
         super(LazyTextView, self).enterEvent(event)
@@ -2340,6 +2360,8 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
     EDIT_MODE = 2
     ADJUST_MODE = 3
     WORK_MODE = 4
+    INIT_PAN_MODE = 5
+    PAN_MODE = 6
     CURSORS_LIST = {
             INIT_MODE : QtCore.Qt.IBeamCursor, 
             DRAW_MODE : QtCore.Qt.CrossCursor, 
@@ -2347,7 +2369,9 @@ class LazyTextScene(QtWidgets.QGraphicsScene):
                 QtCore.QSize(32,32) if QtWidgets.QApplication.primaryScreen().size().width() <= 3000 else QtCore.QSize(64,64)  
                 )),
             ADJUST_MODE : QtCore.Qt.CrossCursor,
-            WORK_MODE : QtCore.Qt.CrossCursor
+            WORK_MODE : QtCore.Qt.CrossCursor,
+            INIT_PAN_MODE : QtCore.Qt.OpenHandCursor,
+            PAN_MODE : QtCore.Qt.ClosedHandCursor
     }
     
     def __init__(self, parent=None):
