@@ -47,9 +47,11 @@ class LazyTextTool(Extension):
             return False
 
     class TextCanvas(QtWidgets.QWidget):
-        def __init__(self, textTool=None, parent=None):
+        def __init__(self, textTool=None, oglCanvas=None, parent=None):
             super(LazyTextTool.TextCanvas, self).__init__(parent)
             self.textTool = textTool
+            self.oglCanvas = oglCanvas
+            self.lockViewFocus = False
             self.wheelZoomCounter = 0
             
             self.writeItemQueue = None
@@ -276,7 +278,9 @@ class LazyTextTool(Extension):
             pass
             
         def viewWheelEvent(self, event):
-            
+            QtWidgets.QApplication.sendEvent(self.oglCanvas, event)
+            self.view.setFocus()
+            '''
             self.wheelZoomCounter += abs(event.angleDelta().y()/2)
             
             if self.wheelZoomCounter >= abs(event.angleDelta().y()):
@@ -285,7 +289,58 @@ class LazyTextTool(Extension):
                     Krita.instance().action('view_zoom_in').trigger()
                 else:
                     Krita.instance().action('view_zoom_out').trigger()
+            '''
 
+        def viewKeyPressEvent(self, event):
+            print ("KEY PRESSED!!!", self.scene.currentMode, self.oglCanvas )
+            if self.scene.currentMode == self.scene.INIT_MODE and event.key() == 32:
+                self.scene.setCurrentMode(self.scene.INIT_PAN_MODE)
+                QtWidgets.QApplication.sendEvent(self.oglCanvas, event)
+                self.view.setFocus()
+                #self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, True)
+                return False
+            return True
+            
+        def viewKeyReleaseEvent(self, event):
+            print ("REALSE KEY!", event.key(), self.scene.currentMode)
+            if (self.scene.currentMode == self.scene.INIT_PAN_MODE or self.scene.currentMode == self.scene.PAN_MODE) and event.key() == 32:
+                self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, False)
+                self.scene.setCurrentMode(self.scene.INIT_MODE)
+                if self.scene.currentMode == self.scene.INIT_PAN_MODE:
+                    self.scene.setCurrentMode(self.scene.INIT_MODE)
+                QtWidgets.QApplication.sendEvent(self.oglCanvas, event)
+
+                return False
+            return True
+        
+        def viewMousePressEvent(self, event):
+            print ("MOUSE PRESSED!!!", self.scene.currentMode, self.oglCanvas )
+
+            if self.scene.currentMode == self.scene.INIT_PAN_MODE:
+                self.scene.setCurrentMode(self.scene.PAN_MODE)
+                self.lockViewFocus = True
+
+
+                print ("BEGIN CLICK")
+                QtWidgets.QApplication.sendEvent(self.oglCanvas, event)
+                print ("AFTER CLICK")
+                return False
+            return True
+
+        def viewMouseReleaseEvent(self, event):
+            if self.scene.currentMode == self.scene.PAN_MODE:
+                self.scene.setCurrentMode(self.scene.INIT_MODE)
+                QtWidgets.QApplication.sendEvent(self.oglCanvas, event)
+                self.lockViewFocus = False
+                self.view.setFocus()
+                return False
+            return True
+
+        def viewMouseMoveEvent(self, event):
+            if self.scene.currentMode == self.scene.PAN_MODE:
+                QtWidgets.QApplication.sendEvent(self.oglCanvas, event)
+                return False
+            return True        
         
         def cleanup(self):
             self.scene.cleanup()
@@ -451,6 +506,7 @@ class LazyTextTool(Extension):
                 opts['transform']=textObject.transform() if self.scene.modifyMode else None
 
 
+
             doc = textObject.textItem.document()
             tcursor=textObject.textItem.textCursor()
             textContent = textObject.textItem.toPlainText()
@@ -538,6 +594,10 @@ class LazyTextTool(Extension):
 
     def closeTextCanvas(self, soft = False):
         if self.currentTextCanvas is not None:
+            #self.mdiTab.setFocusProxy(None)
+            #self.scrollArea.setFocusProxy(self.currentTextCanvas.canvas)
+            self.mdiTab.tabMoved.disconnect(self.documentChanged)
+            self.mdiTab.currentChanged.disconnect(self.tabChanged)
             self.currentTextCanvas.cleanup()
             self.currentTextCanvas.close()
             self.currentTextCanvas = None
@@ -549,6 +609,7 @@ class LazyTextTool(Extension):
 
     def openTextCanvas(self):
         if self.currentTextCanvas is None:
+            print ("NEW OPEN CANVAS!")
             qwin = Krita.instance().activeWindow().qwindow()
             centralWidget = qwin.centralWidget()
             if centralWidget is not None:
@@ -561,23 +622,29 @@ class LazyTextTool(Extension):
                         if mdi:
                             self.mdi = mdi
                             break;
-            
+            print ( "FINDGL", self.mdi.findChildren(QtWidgets.QOpenGLWidget) )
             subWindow = self.mdi.activeSubWindow()
-            onTab = self.mdi.findChild(QtWidgets.QTabBar)
+            self.mdiTab = self.mdi.findChild(QtWidgets.QTabBar)
             
-            if onTab:
-                self.onTab = onTab.currentIndex()
+            if self.mdiTab:
+                self.onTab = self.mdiTab.currentIndex()
             else:
                 tabs = [ idx for idx, obj in enumerate(self.mdi.subWindowList()) if obj is subWindow ]
                 self.onTab = tabs[0]
 
             self.scrollArea = subWindow.findChild(QtWidgets.QAbstractScrollArea)
             self.resetCurrentLayer()
-            self.currentTextCanvas = self.TextCanvas(self,self.scrollArea)
+            self.currentTextCanvas = self.TextCanvas(self, subWindow.findChild(QtWidgets.QOpenGLWidget), self.scrollArea)
             self.currentTextCanvas.resize(self.scrollArea.rect().width(),self.scrollArea.rect().height())
+
             self.canvasAdjust()
             self.bindScrollArea()
             self.bindLayerList2()
+
+            #self.mdiTab.setFocusProxy(self.currentTextCanvas.view)
+            #self.scrollArea.setFocusProxy(self.currentTextCanvas.view)
+            self.mdiTab.tabMoved.connect(self.documentChanged)
+            self.mdiTab.currentChanged.connect(self.tabChanged)
             
             self.backgroundRect = LazyTextBackground()
             self.backgroundRect.setRect( QtCore.QRectF(0, 0, self.currentDocument.width(), self.currentDocument.height()) )
@@ -586,8 +653,11 @@ class LazyTextTool(Extension):
             if self.currentLayer.type() == 'vectorlayer':
                 shapes = self.currentLayer.shapes()
                 self.currentTextCanvas.fillLayer(self.currentLayer, shapes)
- 
-        
+
+            self.currentTextCanvas.view.setFocus()
+            
+    def tabChanged(self):
+        self.currentTextCanvas.view.setFocus()
 
     def canvasAdjust(self):
         self.canvas = Krita.instance().activeWindow().activeView().canvas()
@@ -617,7 +687,8 @@ class LazyTextTool(Extension):
             
         self.currentTextCanvas.view.horizontalScrollBar().setValue( hbar.value() )
         self.currentTextCanvas.view.verticalScrollBar().setValue( vbar.value() )
-        
+        if self.currentTextCanvas.lockViewFocus is False:
+            self.currentTextCanvas.view.setFocus()
 
 
     def unbindScrollArea(self):
@@ -662,9 +733,10 @@ class LazyTextTool(Extension):
         if textToolButton.isChecked():
             LazyTextTool.openTextCanvas(self)
 
+
     def layerRemoved(self):
         if self.kritaVersion >= 5 or self.currentTextCanvas.writeItemQueue is None:
-            self.layerChanged(None,None)        
+            self.layerChanged(None,None)            
     
     def layerChanged(self, selected, deselected):
         print ("ONTAB", self.onTab, self.mdi.findChild(QtWidgets.QTabBar).currentIndex() )
@@ -693,9 +765,11 @@ class LazyTextTool(Extension):
         
         self.resetCurrentLayer()
         self.canvasAdjust()
+        self.currentTextCanvas.view.setFocus()
         
         if self.currentLayer.type() == 'vectorlayer' and self.currentLayer.visible():
             shapes = self.currentLayer.shapes()
+
             if len(shapes) == 0:
                 self.currentTextCanvas.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, False)
                 return
