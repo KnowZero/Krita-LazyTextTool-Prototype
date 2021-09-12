@@ -594,10 +594,11 @@ class LazyTextTool(Extension):
 
     def closeTextCanvas(self, soft = False):
         if self.currentTextCanvas is not None:
-            #self.mdiTab.setFocusProxy(None)
-            #self.scrollArea.setFocusProxy(self.currentTextCanvas.canvas)
-            self.mdiTab.tabMoved.disconnect(self.documentChanged)
-            self.mdiTab.currentChanged.disconnect(self.tabChanged)
+            if self.mdiTab:
+                #self.mdiTab.setFocusProxy(None)
+                #self.scrollArea.setFocusProxy(self.currentTextCanvas.canvas)
+                self.mdiTab.tabMoved.disconnect(self.documentChanged)
+                self.mdiTab.currentChanged.disconnect(self.tabChanged)
             self.currentTextCanvas.cleanup()
             self.currentTextCanvas.close()
             self.currentTextCanvas = None
@@ -641,10 +642,11 @@ class LazyTextTool(Extension):
             self.bindScrollArea()
             self.bindLayerList2()
 
-            #self.mdiTab.setFocusProxy(self.currentTextCanvas.view)
-            #self.scrollArea.setFocusProxy(self.currentTextCanvas.view)
-            self.mdiTab.tabMoved.connect(self.documentChanged)
-            self.mdiTab.currentChanged.connect(self.tabChanged)
+            if self.mdiTab:
+                #self.mdiTab.setFocusProxy(self.currentTextCanvas.view)
+                #self.scrollArea.setFocusProxy(self.currentTextCanvas.view)
+                self.mdiTab.tabMoved.connect(self.documentChanged)
+                self.mdiTab.currentChanged.connect(self.tabChanged)
             
             self.backgroundRect = LazyTextBackground()
             self.backgroundRect.setRect( QtCore.QRectF(0, 0, self.currentDocument.width(), self.currentDocument.height()) )
