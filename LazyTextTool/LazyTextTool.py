@@ -116,34 +116,35 @@ class LazyTextTool(Extension):
 
             docContent = LazyTextUtils.svgToDocument(svgContent)
             
-            if docContent[1]['version'] == 0 and textItem[1].name() is not None:
-                docData = re.search(r'^t(\d)_(\d+)_(\d)([\d\.]+)_(.+)$', textItem[1].name())
-                if docData is not None:
-                    docContent[1]['version']=int(docData.group(1))
-                    docContent[1]['resolution']=int(docData.group(2))
-                    docContent[1]['wrapmode']=int(docData.group(3))
-                    docContent[1]['boundarywidth']=float(docData.group(4))
-                    docContent[1]['crc32']=docData.group(5)
-            
-            self.scene.addItem(textObject)
-            textObject.finalizeObject(docContent, r)
-            textObject.textItem.disableEditing()
-            textObject.textItem.setOpacity(0)
-            
-            if self.textTool.kritaVersion >= 5:
-                t = textItem[1].transformation()
-                print ("POS TEST", [LazyTextUtils.ptsToPx(textItem[1].position().x(), docRes), LazyTextUtils.ptsToPx(textItem[1].position().y(), docRes)  ], [ LazyTextUtils.ptsToPx(t.dx(), docRes), LazyTextUtils.ptsToPx(t.dy(), docRes) ]  )
-                print("transformdata", docContent[1]['transform'], [  t.m11(), t.m12(), t.m21(), t.m22(), t.dx(), t.dy() ] )
+            if 'version' in docContent[1]:
+                if docContent[1]['version'] == 0 and textItem[1].name() is not None:
+                    docData = re.search(r'^t(\d)_(\d+)_(\d)([\d\.]+)_(.+)$', textItem[1].name())
+                    if docData is not None:
+                        docContent[1]['version']=int(docData.group(1))
+                        docContent[1]['resolution']=int(docData.group(2))
+                        docContent[1]['wrapmode']=int(docData.group(3))
+                        docContent[1]['boundarywidth']=float(docData.group(4))
+                        docContent[1]['crc32']=docData.group(5)
                 
-                m = list(map(lambda x: LazyTextUtils.ptsToPx(x, docRes) ,[t.m11(), t.m12(), t.m21(), t.m22(), t.dx(), t.dy() ]))
+                self.scene.addItem(textObject)
+                textObject.finalizeObject(docContent, r)
+                textObject.textItem.disableEditing()
+                textObject.textItem.setOpacity(0)
                 
-                print ("MYNEWHEIGHT1=",t.dy(), m[5])
-                textObject.setTransform( QtGui.QTransform( m[0], m[1], m[2], m[3], 
-                                                          #LazyTextUtils.ptsToPx(textItem[1].position().x(), docRes),LazyTextUtils.ptsToPx(textItem[1].position().y(), docRes)
-                                                          m[4], m[5] 
-                                                          #0,0
-                                                          ) )
-                # boundry border probably doesn't match the transformation
+                if self.textTool.kritaVersion >= 5:
+                    t = textItem[1].transformation()
+                    print ("POS TEST", [LazyTextUtils.ptsToPx(textItem[1].position().x(), docRes), LazyTextUtils.ptsToPx(textItem[1].position().y(), docRes)  ], [ LazyTextUtils.ptsToPx(t.dx(), docRes), LazyTextUtils.ptsToPx(t.dy(), docRes) ]  )
+                    print("transformdata", docContent[1]['transform'], [  t.m11(), t.m12(), t.m21(), t.m22(), t.dx(), t.dy() ] )
+                    
+                    m = list(map(lambda x: LazyTextUtils.ptsToPx(x, docRes) ,[t.m11(), t.m12(), t.m21(), t.m22(), t.dx(), t.dy() ]))
+                    
+                    print ("MYNEWHEIGHT1=",t.dy(), m[5])
+                    textObject.setTransform( QtGui.QTransform( m[0], m[1], m[2], m[3], 
+                                                            #LazyTextUtils.ptsToPx(textItem[1].position().x(), docRes),LazyTextUtils.ptsToPx(textItem[1].position().y(), docRes)
+                                                            m[4], m[5] 
+                                                            #0,0
+                                                            ) )
+                    # boundry border probably doesn't match the transformation
 
             return textObject
             

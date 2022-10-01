@@ -718,7 +718,8 @@ class LazyTextUtils():
         elementList = []
         
         for event,el in etree:
-            elementList.append({ 'event': event, 'el': el, 'type':'unknown' })
+            if el.tag == 'text' or el.tag == 'tspan':
+                elementList.append({ 'event': event, 'el': el, 'type':'unknown' })
         
         for i in range(len(elementList)):
             el=elementList[i]['el']
