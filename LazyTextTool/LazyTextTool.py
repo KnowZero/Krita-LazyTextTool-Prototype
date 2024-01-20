@@ -28,7 +28,7 @@ class LazyTextTool(Extension):
             if self.textTool.active:
                 if event.type() == 12:
                     if obj.isChecked():
-                        print ("OPEN CANVAS FROM FILTER")
+                        #print ("OPEN CANVAS FROM FILTER")
                         LazyTextTool.openTextCanvas(self.textTool)
                     else:
                         if self.textTool.currentTextCanvas is not None:
@@ -109,7 +109,7 @@ class LazyTextTool(Extension):
             #this is a temp fix that should be changed:
             svgContent = svgContent.replace(' krita:',' krita_')
                     
-            print ("SVG", svgContent)
+            #print ("SVG", svgContent)
 
             #blockSettings = []
                     
@@ -133,12 +133,12 @@ class LazyTextTool(Extension):
                 
                 if self.textTool.kritaVersion >= 5:
                     t = textItem[1].transformation()
-                    print ("POS TEST", [LazyTextUtils.ptsToPx(textItem[1].position().x(), docRes), LazyTextUtils.ptsToPx(textItem[1].position().y(), docRes)  ], [ LazyTextUtils.ptsToPx(t.dx(), docRes), LazyTextUtils.ptsToPx(t.dy(), docRes) ]  )
-                    print("transformdata", docContent[1]['transform'], [  t.m11(), t.m12(), t.m21(), t.m22(), t.dx(), t.dy() ] )
+                    #print ("POS TEST", [LazyTextUtils.ptsToPx(textItem[1].position().x(), docRes), LazyTextUtils.ptsToPx(textItem[1].position().y(), docRes)  ], [ LazyTextUtils.ptsToPx(t.dx(), docRes), LazyTextUtils.ptsToPx(t.dy(), docRes) ]  )
+                    #print ("transformdata", docContent[1]['transform'], [  t.m11(), t.m12(), t.m21(), t.m22(), t.dx(), t.dy() ] )
                     
                     m = list(map(lambda x: LazyTextUtils.ptsToPx(x, docRes) ,[t.m11(), t.m12(), t.m21(), t.m22(), t.dx(), t.dy() ]))
                     
-                    print ("MYNEWHEIGHT1=",t.dy(), m[5])
+                    #print ("MYNEWHEIGHT1=",t.dy(), m[5])
                     textObject.setTransform( QtGui.QTransform( m[0], m[1], m[2], m[3], 
                                                             #LazyTextUtils.ptsToPx(textItem[1].position().x(), docRes),LazyTextUtils.ptsToPx(textItem[1].position().y(), docRes)
                                                             m[4], m[5] 
@@ -157,7 +157,7 @@ class LazyTextTool(Extension):
             # all these functions use points, not pixels
             alienTextItem = self.findSingleTextAt( QtCore.QPointF( LazyTextUtils.pxToPts(mousePoint.x(),docRes), LazyTextUtils.pxToPts(mousePoint.y(),docRes) )  )
             
-            print ("ALIEN ITEM RES", alienTextItem)
+            #print ("ALIEN ITEM RES", alienTextItem)
             
             if alienTextItem is not None:
                 #tempItem = LazyTextTempBox(self.scene)
@@ -183,7 +183,7 @@ class LazyTextTool(Extension):
                     #>>self.helperDialog = LazyTextHelper(textObject.textItem, self)
                     #>>self.helperDialog.show()
                     
-                    print ("IS SAME SHAPE", alienTextItem[1].boundingBox(), textItem[1].boundingBox())
+                    #print ("IS SAME SHAPE", alienTextItem[1].boundingBox(), textItem[1].boundingBox())
                     if alienTextItem[1].boundingBox() == textItem[1].boundingBox():
                         selectedItem = textObject
                     #>>    textObject.textItem.setOpacity(0)
@@ -293,7 +293,7 @@ class LazyTextTool(Extension):
             '''
 
         def viewKeyPressEvent(self, event):
-            print ("KEY PRESSED!!!", self.scene.currentMode, self.oglCanvas )
+            #print ("KEY PRESSED!!!", self.scene.currentMode, self.oglCanvas )
             if self.scene.currentMode == self.scene.INIT_MODE and event.key() == 32:
                 self.scene.setCurrentMode(self.scene.INIT_PAN_MODE)
                 QtWidgets.QApplication.sendEvent(self.oglCanvas, event)
@@ -303,7 +303,7 @@ class LazyTextTool(Extension):
             return True
             
         def viewKeyReleaseEvent(self, event):
-            print ("REALSE KEY!", event.key(), self.scene.currentMode)
+            #print ("REALSE KEY!", event.key(), self.scene.currentMode)
             if (self.scene.currentMode == self.scene.INIT_PAN_MODE or self.scene.currentMode == self.scene.PAN_MODE) and event.key() == 32:
                 self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, False)
                 self.scene.setCurrentMode(self.scene.INIT_MODE)
@@ -315,16 +315,16 @@ class LazyTextTool(Extension):
             return True
         
         def viewMousePressEvent(self, event):
-            print ("MOUSE PRESSED!!!", self.scene.currentMode, self.oglCanvas )
+            #print ("MOUSE PRESSED!!!", self.scene.currentMode, self.oglCanvas )
 
             if self.scene.currentMode == self.scene.INIT_PAN_MODE:
                 self.scene.setCurrentMode(self.scene.PAN_MODE)
                 self.lockViewFocus = True
 
 
-                print ("BEGIN CLICK")
+                #print ("BEGIN CLICK")
                 QtWidgets.QApplication.sendEvent(self.oglCanvas, event)
-                print ("AFTER CLICK")
+                #print ("AFTER CLICK")
                 return False
             return True
 
@@ -362,7 +362,7 @@ class LazyTextTool(Extension):
                 self.fillLayer(currentLayer, shapes)
         
         def editItem(self, textObject):
-            print ("EDIT ITEM1")
+            #print ("EDIT ITEM1")
             self.textTool.setCurrentLayer()
             currentLayer = self.textTool.currentLayer
             
@@ -381,11 +381,11 @@ class LazyTextTool(Extension):
                     currentLayer.setVisible(False)
                 QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.IBeamCursor)
                 self.textTool.currentDocument.refreshProjection()
-            print ("EDIT ITEM2", currentLayer.type())
+            #print ("EDIT ITEM2", currentLayer.type())
             
         def writeItem(self, textObject):
             if textObject is None:
-                print ("NO OBJECT SELECTED!")
+                #print ("NO OBJECT SELECTED!")
                 return
             currentDocument = self.textTool.currentDocument
             currentLayer = self.textTool.currentLayer
@@ -399,7 +399,7 @@ class LazyTextTool(Extension):
                     elif currentLayer.visible() is False and len(currentLayer.shapes()) == 1:
                         currentLayer.remove()
                         currentDocument.refreshProjection()
-                print ("REMOVED BLANK")
+                #print ("REMOVED BLANK")
                 return
             
           
@@ -407,17 +407,17 @@ class LazyTextTool(Extension):
             st = textObject.sceneTransform()
             sp = textObject.scenePos()
             p = textObject.rect()
-            print ("SCENE TRANSFORM", st.dx(), st.dy(), "DTRANSFORM", st.dx(), st.dy(), "SCENE POS", sp.x(), sp.y(), "RPOS", p.x(), p.y() )
+            #print ("SCENE TRANSFORM", st.dx(), st.dy(), "DTRANSFORM", st.dx(), st.dy(), "SCENE POS", sp.x(), sp.y(), "RPOS", p.x(), p.y() )
             
             
-            print ("CHECK NEW LAYER!", currentLayer.type(), currentLayer.visible())
+            #print ("CHECK NEW LAYER!", currentLayer.type(), currentLayer.visible())
             
             if currentLayer.type() == 'vectorlayer':
-                print ("CHECK NEW LAYER2!", len(currentLayer.shapes()) )
+                #print ("CHECK NEW LAYER2!", len(currentLayer.shapes()) )
             
             writeItemQueue = { 'item': textObject, 'document': currentDocument, 'layer': currentLayer, 'remove_layer': None }
 
-            print ("TRY NEW LAYER!")
+            #print ("TRY NEW LAYER!")
             if currentLayer.type() == 'grouplayer':
                 parentLayer = currentLayer
             else:
@@ -442,14 +442,14 @@ class LazyTextTool(Extension):
 
             '''
             if currentLayer.type() == 'vectorlayer' and currentLayer.visible() == False and len(currentLayer.shapes()) == 1 and self.scene.modifyMode:
-                print ("TRY NEW LAYER!")
+                #print ("TRY NEW LAYER!")
                 parentLayer = currentLayer.parentNode()
                 
                 #Krita.instance().action('add_new_shape_layer').trigger()
                 #currentDocument.waitForDone()
                 #self.waitForNewLayer = QtCore.QEventLoop()
                 
-                #print ("WAIT FOR NEW LAYER!", self.waitForNewLayer)
+                ##print ("WAIT FOR NEW LAYER!", self.waitForNewLayer)
                 
                 writeItemQueue['remove_layer'] = currentLayer
                 
@@ -461,7 +461,7 @@ class LazyTextTool(Extension):
                 parentLayer.addChildNode(newLayer, None)
                 currentDocument.setActiveNode(newLayer)
                 #returnCode = self.waitForNewLayer.exec()
-                #print ("RETURN CODE", returnCode)
+                ##print ("RETURN CODE", returnCode)
                 #self.waitForNewLayer = None
                 return 2
             else:
@@ -522,18 +522,18 @@ class LazyTextTool(Extension):
             
             textContent=textContent.replace("\n", " ")
             htmlContent = textObject.textItem.toHtml()
-            print ("PREOUT HTML", htmlContent)
+            #print ("PREOUT HTML", htmlContent)
             htmlContent = htmlContent.replace('<br />&lt;br data-wordwrap=&quot;true&quot; /&gt;','<br data-wordwrap="true" />')
             htmlContent = htmlContent.replace('&lt;br data-wordwrap=&quot;true&quot; /&gt;','<br data-wordwrap="true" />')
             htmlContent = re.sub(r'(<p[^>]*?>)<br /></p>',r'\1 </p>', htmlContent)
 
             
-            print ("OUT HTML", htmlContent)
+            #print ("OUT HTML", htmlContent)
             
             if textContent != '':
                 svgItem = LazyTextUtils.htmlToSvg(htmlContent, opts )
                 svgContent = LazyTextUtils.svgDocument(svgItem, currentDocument.width(), currentDocument.height(), currentDocument.resolution() )
-                print ("OUT SVG", svgContent)
+                #print ("OUT SVG", svgContent)
                 shapes = self.writeSvgContent(svgContent, currentLayer)
                 currentDocument.waitForDone()
                 
@@ -551,7 +551,7 @@ class LazyTextTool(Extension):
                     self.textTool.resetCurrentLayer()
                     
                 
-                print ("APPEND MODE:", self.scene.appendMode, len(currentLayer.shapes()) )
+                #print ("APPEND MODE:", self.scene.appendMode, len(currentLayer.shapes()) )
                 if not self.scene.appendMode and len(currentLayer.shapes()) <= 1: currentLayer.setName( re.search('^(.{1,50})',textContent).group(1) )
                 currentDocument.refreshProjection()
                 
@@ -572,9 +572,9 @@ class LazyTextTool(Extension):
         
                 mimeNewContent=QtCore.QMimeData()
                 mimeNewContent.setData('image/svg', svgContent.encode())
-                #print ("mime",mimeOldContent)
+                ##print ("mime",mimeOldContent)
                 QtGui.QGuiApplication.clipboard().setMimeData(mimeNewContent)
-                #print ("mime2",mimeOldContent)
+                ##print ("mime2",mimeOldContent)
                 Krita.instance().action('edit_paste').trigger()
                 QtGui.QGuiApplication.clipboard().setMimeData(mimeStoreContent)
                 return None
@@ -611,7 +611,7 @@ class LazyTextTool(Extension):
 
     def openTextCanvas(self):
         if self.currentTextCanvas is None:
-            print ("NEW OPEN CANVAS!")
+            #print ("NEW OPEN CANVAS!")
             qwin = Krita.instance().activeWindow().qwindow()
             centralWidget = qwin.centralWidget()
             if centralWidget is not None:
@@ -624,7 +624,7 @@ class LazyTextTool(Extension):
                         if mdi:
                             self.mdi = mdi
                             break;
-            print ( "FINDGL", self.mdi.findChildren(QtWidgets.QOpenGLWidget) )
+            #print ( "FINDGL", self.mdi.findChildren(QtWidgets.QOpenGLWidget) )
             subWindow = self.mdi.activeSubWindow()
             self.mdiTab = self.mdi.findChild(QtWidgets.QTabBar)
             
@@ -727,7 +727,7 @@ class LazyTextTool(Extension):
         layerList.model().sourceModel().rowsRemoved.connect(self.layerRemoved)
     
     def documentChanged(self):
-        print ("DOCUMENT CHANGED!", self.currentDocument, Krita.instance().activeDocument())
+        #print ("DOCUMENT CHANGED!", self.currentDocument, Krita.instance().activeDocument())
         qwin = Krita.instance().activeWindow().qwindow()
         toolBox = qwin.findChild(QtWidgets.QDockWidget, "ToolBox")
         textToolButton = qwin.findChild(QtWidgets.QToolButton, "SvgTextTool")
@@ -742,12 +742,12 @@ class LazyTextTool(Extension):
             self.layerChanged(None,None)            
     
     def layerChanged(self, selected, deselected):
-        print ("ONTAB", self.onTab, self.mdi.findChild(QtWidgets.QTabBar).currentIndex() )
+        #print ("ONTAB", self.onTab, self.mdi.findChild(QtWidgets.QTabBar).currentIndex() )
         if self.onTab != self.mdi.findChild(QtWidgets.QTabBar).currentIndex():
             self.documentChanged()
         
         if self.currentTextCanvas is None: return
-        print ("LAYER CHANGED!", self.currentTextCanvas.writeItemQueue)
+        #print ("LAYER CHANGED!", self.currentTextCanvas.writeItemQueue)
         if self.currentTextCanvas.writeItemQueue is not None:
             self.resetCurrentLayer()
             self.currentTextCanvas.finishWriteItem( self.currentTextCanvas.writeItemQueue )
@@ -814,7 +814,7 @@ class LazyTextTool(Extension):
         pass
     
     def closeViewEvent(self):
-        print ("CLOSE VIEW", Krita.instance().activeWindow().activeView().visible())
+        #print ("CLOSE VIEW", Krita.instance().activeWindow().activeView().visible())
         self.closeTextCanvas(True)
         if Krita.instance().activeWindow().activeView().visible() == False:
             self.unbindToolButton()
@@ -824,7 +824,7 @@ class LazyTextTool(Extension):
 
 
     def openViewEvent(self):
-        print ("OPEN VIEW")
+        #print ("OPEN VIEW")
         self.bindToolButton()
         self.onTab = -1
 

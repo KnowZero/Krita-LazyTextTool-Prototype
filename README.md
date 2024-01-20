@@ -1,3 +1,5 @@
+# Notice: As of Krita 5.3, LazyTextTool-Prototype will be discontinued as oncanvas text tool will be included out of box. LazyTextTool was mostly a for fun prototype to see if it could be possible via the python API until a native one was made. Since it has served it's purpose, it has little meaning going forward. You can already play with 5.3 nighlies but be warned not all features may be implemented yet and bugs may exist. But you can still help developers test for issues and make suggestions.
+
 # Krita-LazyTextTool-Prototype
 A prototype of a lazily made text tool alternative for Krita (Use at your own risk)
 Lazy Text Tool(Prototype) – A plugin that helps you type
