@@ -412,8 +412,8 @@ class LazyTextTool(Extension):
             
             #print ("CHECK NEW LAYER!", currentLayer.type(), currentLayer.visible())
             
-            if currentLayer.type() == 'vectorlayer':
-                #print ("CHECK NEW LAYER2!", len(currentLayer.shapes()) )
+            #if currentLayer.type() == 'vectorlayer':
+            #    print ("CHECK NEW LAYER2!", len(currentLayer.shapes()) )
             
             writeItemQueue = { 'item': textObject, 'document': currentDocument, 'layer': currentLayer, 'remove_layer': None }
 
